@@ -14,12 +14,11 @@ import static com.facebook.react.fabric.mounting.mountitems.FabricNameComponentM
 import com.facebook.common.logging.FLog;
 import com.facebook.infer.annotation.Nullsafe;
 import com.facebook.proguard.annotations.DoNotStrip;
-import com.facebook.react.bridge.ReactMarker;
-import com.facebook.react.bridge.ReactMarkerConstants;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.fabric.events.EventEmitterWrapper;
 import com.facebook.react.fabric.mounting.MountingManager;
 import com.facebook.react.fabric.mounting.SurfaceMountingManager;
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags;
 import com.facebook.react.uimanager.StateWrapper;
 import com.facebook.systrace.Systrace;
 
@@ -73,24 +72,6 @@ final class IntBufferBatchMountItem implements BatchMountItem {
     mObjBufferLen = mObjBuffer.length;
   }
 
-  private void beginMarkers(String reason) {
-    Systrace.beginSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE, "FabricUIManager::" + reason);
-
-    if (mCommitNumber > 0) {
-      ReactMarker.logFabricMarker(
-          ReactMarkerConstants.FABRIC_BATCH_EXECUTION_START, null, mCommitNumber);
-    }
-  }
-
-  private void endMarkers() {
-    if (mCommitNumber > 0) {
-      ReactMarker.logFabricMarker(
-          ReactMarkerConstants.FABRIC_BATCH_EXECUTION_END, null, mCommitNumber);
-    }
-
-    Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);
-  }
-
   @Override
   public void execute(MountingManager mountingManager) {
     SurfaceMountingManager surfaceMountingManager = mountingManager.getSurfaceManager(mSurfaceId);
@@ -109,13 +90,15 @@ final class IntBufferBatchMountItem implements BatchMountItem {
       FLog.d(TAG, "Executing IntBufferBatchMountItem on surface [%d]", mSurfaceId);
     }
 
-    beginMarkers("mountViews");
-
     int i = 0, j = 0;
     while (i < mIntBufferLen) {
       int rawType = mIntBuffer[i++];
       int type = rawType & ~INSTRUCTION_FLAG_MULTIPLE;
       int numInstructions = ((rawType & INSTRUCTION_FLAG_MULTIPLE) != 0 ? mIntBuffer[i++] : 1);
+
+      Systrace.beginSection(
+          Systrace.TRACE_TAG_REACT_JAVA_BRIDGE,
+          "IntBufferBatchMountItem::mountInstructions::" + nameForInstructionString(type));
       for (int k = 0; k < numInstructions; k++) {
         if (type == INSTRUCTION_CREATE) {
           String componentName = getFabricComponentName((String) mObjBuffer[j++]);
@@ -150,9 +133,14 @@ final class IntBufferBatchMountItem implements BatchMountItem {
           int height = mIntBuffer[i++];
           int displayType = mIntBuffer[i++];
 
-          surfaceMountingManager.updateLayout(
-              reactTag, parentTag, x, y, width, height, displayType);
-
+          if (ReactNativeFeatureFlags.setAndroidLayoutDirection()) {
+            int layoutDirection = mIntBuffer[i++];
+            surfaceMountingManager.updateLayout(
+                reactTag, parentTag, x, y, width, height, displayType, layoutDirection);
+          } else {
+            surfaceMountingManager.updateLayout(
+                reactTag, parentTag, x, y, width, height, displayType, 0);
+          }
         } else if (type == INSTRUCTION_UPDATE_PADDING) {
           surfaceMountingManager.updatePadding(
               mIntBuffer[i++], mIntBuffer[i++], mIntBuffer[i++], mIntBuffer[i++], mIntBuffer[i++]);
@@ -177,9 +165,8 @@ final class IntBufferBatchMountItem implements BatchMountItem {
               "Invalid type argument to IntBufferBatchMountItem: " + type + " at index: " + i);
         }
       }
+      Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);
     }
-
-    endMarkers();
   }
 
   @Override
@@ -299,6 +286,34 @@ final class IntBufferBatchMountItem implements BatchMountItem {
       }
 
       return "";
+    }
+  }
+
+  private static String nameForInstructionString(int type) {
+    if (type == INSTRUCTION_CREATE) {
+      return "CREATE";
+    } else if (type == INSTRUCTION_DELETE) {
+      return "DELETE";
+    } else if (type == INSTRUCTION_INSERT) {
+      return "INSERT";
+    } else if (type == INSTRUCTION_REMOVE) {
+      return "REMOVE";
+    } else if (type == INSTRUCTION_REMOVE_DELETE_TREE) {
+      return "REMOVE_DELETE_TREE";
+    } else if (type == INSTRUCTION_UPDATE_PROPS) {
+      return "UPDATE_PROPS";
+    } else if (type == INSTRUCTION_UPDATE_STATE) {
+      return "UPDATE_STATE";
+    } else if (type == INSTRUCTION_UPDATE_LAYOUT) {
+      return "UPDATE_LAYOUT";
+    } else if (type == INSTRUCTION_UPDATE_PADDING) {
+      return "UPDATE_PADDING";
+    } else if (type == INSTRUCTION_UPDATE_OVERFLOW_INSET) {
+      return "UPDATE_OVERFLOW_INSET";
+    } else if (type == INSTRUCTION_UPDATE_EVENT_EMITTER) {
+      return "UPDATE_EVENT_EMITTER";
+    } else {
+      return "UNKNOWN";
     }
   }
 }

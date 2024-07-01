@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include <cxxreact/MoveWrapper.h>
 #include <cxxreact/SystraceSection.h>
 #include <fbjni/fbjni.h>
 #include <glog/logging.h>
@@ -81,17 +82,35 @@ bool rejectTurboModulePromiseOnNativeError() {
 }
 
 struct JNIArgs {
-  JNIArgs(size_t count) : args_(count) {}
-  std::vector<jvalue> args_;
-  std::vector<jobject> globalRefs_;
+  JNIArgs(size_t count) : args(count) {}
+  JNIArgs(const JNIArgs&) = delete;
+  JNIArgs(JNIArgs&& jniArgs) noexcept = default;
+
+  JNIArgs& operator=(const JNIArgs& other) = delete;
+  JNIArgs& operator=(JNIArgs&& other) noexcept = default;
+
+  std::vector<jvalue> args;
+  std::vector<jobject> globalRefs;
+
+  ~JNIArgs() {
+    JNIEnv* env = jni::Environment::current();
+    for (auto globalRef : globalRefs) {
+      env->DeleteGlobalRef(globalRef);
+    }
+  }
 };
+
+jsi::Value createJSRuntimeError(jsi::Runtime& runtime, jsi::Value&& message) {
+  return runtime.global()
+      .getPropertyAsFunction(runtime, "Error")
+      .call(runtime, std::move(message));
+}
 
 jsi::Value createJSRuntimeError(
     jsi::Runtime& runtime,
     const std::string& message) {
-  return runtime.global()
-      .getPropertyAsFunction(runtime, "Error")
-      .call(runtime, message);
+  return createJSRuntimeError(
+      runtime, jsi::String::createFromUtf8(runtime, message));
 }
 
 jsi::Value createRejectionError(jsi::Runtime& rt, const folly::dynamic& args) {
@@ -102,10 +121,8 @@ jsi::Value createRejectionError(jsi::Runtime& rt, const folly::dynamic& args) {
   react_native_assert(value.isObject() && "promise reject should return a map");
 
   const jsi::Object& valueAsObject = value.asObject(rt);
-
-  auto messageProperty = valueAsObject.getProperty(rt, "message");
   auto jsError =
-      createJSRuntimeError(rt, messageProperty.asString(rt).utf8(rt));
+      createJSRuntimeError(rt, valueAsObject.getProperty(rt, "message"));
 
   auto jsErrorAsObject = jsError.asObject(rt);
   auto propertyNames = valueAsObject.getPropertyNames(rt);
@@ -313,11 +330,10 @@ JNIArgs convertJSIArgsToJNIArgs(
   }
 
   JNIArgs jniArgs(valueKind == PromiseKind ? count + 1 : count);
-  auto& jargs = jniArgs.args_;
-  auto& globalRefs = jniArgs.globalRefs_;
+  auto& jargs = jniArgs.args;
+  auto& globalRefs = jniArgs.globalRefs;
 
-  auto makeGlobalIfNecessary =
-      [&globalRefs, env, valueKind](jobject obj) -> jobject {
+  auto makeGlobalIfNecessary = [&](jobject obj) {
     if (valueKind == VoidKind || valueKind == PromiseKind) {
       jobject globalObj = env->NewGlobalRef(obj);
       globalRefs.push_back(globalObj);
@@ -480,7 +496,8 @@ jsi::JSError convertThrowableToJSError(
 
   jsi::Object cause(runtime);
   auto name = throwable->getClass()->getCanonicalName()->toStdString();
-  auto message = throwable->getMessage()->toStdString();
+  auto messageStr = throwable->getMessage();
+  auto message = messageStr != nullptr ? messageStr->toStdString() : name;
   cause.setProperty(runtime, "name", name);
   cause.setProperty(runtime, "message", message);
   cause.setProperty(runtime, "stackElements", std::move(stackElements));
@@ -630,8 +647,8 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
     TMPL::syncMethodCallExecutionStart(moduleName, methodName);
   }
 
-  auto& jargs = jniArgs.args_;
-  auto& globalRefs = jniArgs.globalRefs_;
+  auto& jargs = jniArgs.args;
+  auto& globalRefs = jniArgs.globalRefs;
 
   switch (valueKind) {
     case BooleanKind: {
@@ -816,8 +833,7 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
 
       nativeMethodCallInvoker_->invokeAsync(
           methodName,
-          [jargs,
-           globalRefs,
+          [jniArgs = makeMoveWrapper(std::move(jniArgs)),
            methodID,
            instance_ = jni::make_weak(instance_),
            moduleNameStr = name_,
@@ -844,16 +860,13 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
             const char* methodName = methodNameStr.c_str();
 
             TMPL::asyncMethodCallExecutionStart(moduleName, methodName, id);
-            env->CallVoidMethodA(instance.get(), methodID, jargs.data());
+            env->CallVoidMethodA(
+                instance.get(), methodID, jniArgs->args.data());
             try {
               FACEBOOK_JNI_THROW_PENDING_EXCEPTION();
             } catch (...) {
               TMPL::asyncMethodCallExecutionFail(moduleName, methodName, id);
               throw;
-            }
-
-            for (auto globalRef : globalRefs) {
-              env->DeleteGlobalRef(globalRef);
             }
             TMPL::asyncMethodCallExecutionEnd(moduleName, methodName, id);
           });
@@ -915,11 +928,12 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
       // JS Stack at the time when the promise is created.
       std::optional<std::string> jsInvocationStack;
       if (traceTurboModulePromiseRejections()) {
-        jsInvocationStack = createJSRuntimeError(runtime, "")
-                                .asObject(runtime)
-                                .getProperty(runtime, "stack")
-                                .toString(runtime)
-                                .utf8(runtime);
+        jsInvocationStack =
+            createJSRuntimeError(runtime, jsi::Value::undefined())
+                .asObject(runtime)
+                .getProperty(runtime, "stack")
+                .toString(runtime)
+                .utf8(runtime);
       }
 
       const char* moduleName = name_.c_str();
@@ -928,10 +942,9 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
       TMPL::asyncMethodCallDispatch(moduleName, methodName);
       nativeMethodCallInvoker_->invokeAsync(
           methodName,
-          [jargs,
+          [jniArgs = makeMoveWrapper(std::move(jniArgs)),
            rejectCallback = std::move(nativeRejectCallback),
            jsInvocationStack = std::move(jsInvocationStack),
-           globalRefs,
            methodID,
            instance_ = jni::make_weak(instance_),
            moduleNameStr = name_,
@@ -957,23 +970,20 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
             const char* moduleName = moduleNameStr.c_str();
             const char* methodName = methodNameStr.c_str();
             TMPL::asyncMethodCallExecutionStart(moduleName, methodName, id);
-            env->CallVoidMethodA(instance.get(), methodID, jargs.data());
+            env->CallVoidMethodA(
+                instance.get(), methodID, jniArgs->args.data());
             try {
               FACEBOOK_JNI_THROW_PENDING_EXCEPTION();
             } catch (...) {
-              TMPL::asyncMethodCallExecutionFail(moduleName, methodName, id);
               if (rejectTurboModulePromiseOnNativeError() && rejectCallback) {
                 auto exception = std::current_exception();
                 rejectWithException(
                     *rejectCallback, exception, jsInvocationStack);
                 rejectCallback = std::nullopt;
               } else {
+                TMPL::asyncMethodCallExecutionFail(moduleName, methodName, id);
                 throw;
               }
-            }
-
-            for (auto globalRef : globalRefs) {
-              env->DeleteGlobalRef(globalRef);
             }
             TMPL::asyncMethodCallExecutionEnd(moduleName, methodName, id);
           });
@@ -985,6 +995,36 @@ jsi::Value JavaTurboModule::invokeJavaMethod(
           "Unable to find method module: " + methodNameStr + "(" +
           methodSignature + ")");
   }
+}
+
+void JavaTurboModule::setEventEmitterCallback(
+    jni::alias_ref<jobject> jinstance) {
+  JNIEnv* env = jni::Environment::current();
+  auto instance = jinstance.get();
+  static jmethodID cachedMethodId = nullptr;
+  if (cachedMethodId == nullptr) {
+    jclass cls = env->GetObjectClass(instance);
+    cachedMethodId = env->GetMethodID(
+        cls,
+        "setEventEmitterCallback",
+        "(Lcom/facebook/react/bridge/CxxCallbackImpl;)V");
+  }
+
+  auto eventEmitterLookup =
+      [&](const std::string& eventName) -> AsyncEventEmitter<folly::dynamic>& {
+    return static_cast<AsyncEventEmitter<folly::dynamic>&>(
+        *eventEmitterMap_[eventName].get());
+  };
+
+  jvalue arg;
+  arg.l = JCxxCallbackImpl::newObjectCxxArgs([eventEmitterLookup = std::move(
+                                                  eventEmitterLookup)](
+                                                 folly::dynamic args) {
+            auto eventName = args.at(0).asString();
+            auto eventArgs = args.size() > 1 ? args.at(1) : nullptr;
+            eventEmitterLookup(eventName).emit(std::move(eventArgs));
+          }).release();
+  env->CallVoidMethod(instance, cachedMethodId, arg);
 }
 
 } // namespace facebook::react

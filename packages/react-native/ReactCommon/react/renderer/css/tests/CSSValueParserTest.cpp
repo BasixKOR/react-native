@@ -59,6 +59,11 @@ TEST(CSSValueParser, length_values) {
   EXPECT_EQ(pxValue.getLength().value, 20.0f);
   EXPECT_EQ(pxValue.getLength().unit, CSSLengthUnit::Px);
 
+  auto capsValue = parseCSSValue<CSSWideKeyword, CSSLength>("50PX");
+  EXPECT_EQ(capsValue.type(), CSSValueType::Length);
+  EXPECT_EQ(capsValue.getLength().value, 50.0f);
+  EXPECT_EQ(capsValue.getLength().unit, CSSLengthUnit::Px);
+
   auto cmValue = parseCSSValue<CSSWideKeyword, CSSLength>("453cm");
   EXPECT_EQ(cmValue.type(), CSSValueType::Length);
   EXPECT_EQ(cmValue.getLength().value, 453.0f);
@@ -258,6 +263,10 @@ TEST(CSSValueParser, angle_values) {
   EXPECT_EQ(degreeValue.type(), CSSValueType::Angle);
   EXPECT_EQ(degreeValue.getAngle().degrees, 10.0f);
 
+  auto spongebobCaseValue = parseCSSValue<CSSWideKeyword, CSSAngle>("20dEg");
+  EXPECT_EQ(spongebobCaseValue.type(), CSSValueType::Angle);
+  EXPECT_EQ(spongebobCaseValue.getAngle().degrees, 20.0f);
+
   auto radianValue = parseCSSValue<CSSWideKeyword, CSSAngle>("10rad");
   EXPECT_EQ(radianValue.type(), CSSValueType::Angle);
   EXPECT_NEAR(radianValue.getAngle().degrees, 572.958f, 0.001f);
@@ -320,4 +329,91 @@ TEST(CSSValueParser, parse_length_prop_constexpr) {
   EXPECT_EQ(pxValue.getLength().unit, CSSLengthUnit::Px);
 }
 
+TEST(CSSValueParser, hex_color_values) {
+  auto emptyValue = parseCSSValue<CSSWideKeyword, CSSColor>("");
+  EXPECT_EQ(emptyValue.type(), CSSValueType::CSSWideKeyword);
+  EXPECT_EQ(emptyValue.getCSSWideKeyword(), CSSWideKeyword::Unset);
+
+  auto hex3DigitColorValue = parseCSSValue<CSSWideKeyword, CSSColor>("#fff");
+  EXPECT_EQ(hex3DigitColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hex3DigitColorValue.getColor().r, 255);
+  EXPECT_EQ(hex3DigitColorValue.getColor().g, 255);
+  EXPECT_EQ(hex3DigitColorValue.getColor().b, 255);
+  EXPECT_EQ(hex3DigitColorValue.getColor().a, 255);
+
+  auto hex4DigitColorValue = parseCSSValue<CSSWideKeyword, CSSColor>("#ffff");
+  EXPECT_EQ(hex4DigitColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hex4DigitColorValue.getColor().r, 255);
+  EXPECT_EQ(hex4DigitColorValue.getColor().g, 255);
+  EXPECT_EQ(hex4DigitColorValue.getColor().b, 255);
+  EXPECT_EQ(hex4DigitColorValue.getColor().a, 255);
+
+  auto hex6DigitColorValue = parseCSSValue<CSSWideKeyword, CSSColor>("#ffffff");
+  EXPECT_EQ(hex6DigitColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hex6DigitColorValue.getColor().r, 255);
+  EXPECT_EQ(hex6DigitColorValue.getColor().g, 255);
+  EXPECT_EQ(hex6DigitColorValue.getColor().b, 255);
+  EXPECT_EQ(hex6DigitColorValue.getColor().a, 255);
+
+  auto hex8DigitColorValue =
+      parseCSSValue<CSSWideKeyword, CSSColor>("#ffffffff");
+  EXPECT_EQ(hex8DigitColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hex8DigitColorValue.getColor().r, 255);
+  EXPECT_EQ(hex8DigitColorValue.getColor().g, 255);
+  EXPECT_EQ(hex8DigitColorValue.getColor().b, 255);
+  EXPECT_EQ(hex8DigitColorValue.getColor().a, 255);
+
+  auto hexMixedCaseColorValue =
+      parseCSSValue<CSSWideKeyword, CSSColor>("#FFCc99");
+  EXPECT_EQ(hexMixedCaseColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hexMixedCaseColorValue.getColor().r, 255);
+  EXPECT_EQ(hexMixedCaseColorValue.getColor().g, 204);
+  EXPECT_EQ(hexMixedCaseColorValue.getColor().b, 153);
+  EXPECT_EQ(hexMixedCaseColorValue.getColor().a, 255);
+
+  auto hexDigitOnlyColorValue = parseCSSValue<CSSWideKeyword, CSSColor>("#369");
+  EXPECT_EQ(hexDigitOnlyColorValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hexDigitOnlyColorValue.getColor().r, 51);
+  EXPECT_EQ(hexDigitOnlyColorValue.getColor().g, 102);
+  EXPECT_EQ(hexDigitOnlyColorValue.getColor().b, 153);
+  EXPECT_EQ(hexDigitOnlyColorValue.getColor().a, 255);
+
+  auto hexAlphaTestValue = parseCSSValue<CSSWideKeyword, CSSColor>("#FFFFFFCC");
+  EXPECT_EQ(hexAlphaTestValue.type(), CSSValueType::Color);
+  EXPECT_EQ(hexAlphaTestValue.getColor().r, 255);
+  EXPECT_EQ(hexAlphaTestValue.getColor().g, 255);
+  EXPECT_EQ(hexAlphaTestValue.getColor().b, 255);
+  EXPECT_EQ(hexAlphaTestValue.getColor().a, 204);
+}
+
+TEST(CSSValueParser, named_colors) {
+  auto invalidNamedColorTestValue =
+      parseCSSValue<CSSWideKeyword, CSSColor>("redd");
+  EXPECT_EQ(invalidNamedColorTestValue.type(), CSSValueType::CSSWideKeyword);
+  EXPECT_EQ(
+      invalidNamedColorTestValue.getCSSWideKeyword(), CSSWideKeyword::Unset);
+
+  auto namedColorTestValue1 = parseCSSValue<CSSWideKeyword, CSSColor>("red");
+  EXPECT_EQ(namedColorTestValue1.type(), CSSValueType::Color);
+  EXPECT_EQ(namedColorTestValue1.getColor().r, 255);
+  EXPECT_EQ(namedColorTestValue1.getColor().g, 0);
+  EXPECT_EQ(namedColorTestValue1.getColor().b, 0);
+  EXPECT_EQ(namedColorTestValue1.getColor().a, 255);
+
+  auto namedColorTestValue2 =
+      parseCSSValue<CSSWideKeyword, CSSColor>("cornsilk");
+  EXPECT_EQ(namedColorTestValue2.type(), CSSValueType::Color);
+  EXPECT_EQ(namedColorTestValue2.getColor().r, 255);
+  EXPECT_EQ(namedColorTestValue2.getColor().g, 248);
+  EXPECT_EQ(namedColorTestValue2.getColor().b, 220);
+  EXPECT_EQ(namedColorTestValue2.getColor().a, 255);
+
+  auto namedColorMixedCaseTestValue =
+      parseCSSValue<CSSWideKeyword, CSSColor>("sPrINgGrEEn");
+  EXPECT_EQ(namedColorMixedCaseTestValue.type(), CSSValueType::Color);
+  EXPECT_EQ(namedColorMixedCaseTestValue.getColor().r, 0);
+  EXPECT_EQ(namedColorMixedCaseTestValue.getColor().g, 255);
+  EXPECT_EQ(namedColorMixedCaseTestValue.getColor().b, 127);
+  EXPECT_EQ(namedColorMixedCaseTestValue.getColor().a, 255);
+}
 } // namespace facebook::react

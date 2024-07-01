@@ -35,6 +35,7 @@ import com.facebook.infer.annotation.Assertions;
 import com.facebook.infer.annotation.Nullsafe;
 import com.facebook.react.common.ReactConstants;
 import com.facebook.react.common.build.ReactBuildConfig;
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags;
 import com.facebook.react.modules.i18nmanager.I18nUtil;
 import com.facebook.react.uimanager.MeasureSpecAssertions;
 import com.facebook.react.uimanager.PointerEvents;
@@ -83,7 +84,6 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
   private final OnScrollDispatchHelper mOnScrollDispatchHelper = new OnScrollDispatchHelper();
   private final @Nullable OverScroller mScroller;
   private final VelocityHelper mVelocityHelper = new VelocityHelper();
-  private final Rect mRect = new Rect();
   private final Rect mOverflowInset = new Rect();
 
   private boolean mActivelyScrolling;
@@ -144,6 +144,7 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
 
     setOnHierarchyChangeListener(this);
     setClipChildren(false);
+    mReactBackgroundManager.setOverflow(ViewProps.SCROLL);
   }
 
   public boolean getScrollEnabled() {
@@ -272,7 +273,7 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
 
   public void setOverflow(@Nullable String overflow) {
     mOverflow = overflow;
-    invalidate();
+    mReactBackgroundManager.setOverflow(overflow == null ? ViewProps.SCROLL : overflow);
   }
 
   public void setMaintainVisibleContentPosition(
@@ -305,14 +306,8 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
   }
 
   @Override
-  protected void onDraw(Canvas canvas) {
-    if (DEBUG_MODE) {
-      FLog.i(TAG, "onDraw[%d]", getId());
-    }
-    getDrawingRect(mRect);
-    if (!ViewProps.VISIBLE.equals(mOverflow)) {
-      canvas.clipRect(mRect);
-    }
+  public void onDraw(Canvas canvas) {
+    mReactBackgroundManager.maybeClipToPaddingBox(canvas);
     super.onDraw(canvas);
   }
 
@@ -1061,7 +1056,10 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
     int firstOffset = 0;
     int lastOffset = maximumOffset;
     int width = getWidth() - ViewCompat.getPaddingStart(this) - ViewCompat.getPaddingEnd(this);
-    int layoutDirection = getReactScrollViewScrollState().getLayoutDirection();
+    int layoutDirection =
+        ReactNativeFeatureFlags.setAndroidLayoutDirection()
+            ? getLayoutDirection()
+            : mReactScrollViewScrollState.getLayoutDirection();
 
     // offsets are from the right edge in RTL layouts
     if (layoutDirection == LAYOUT_DIRECTION_RTL) {
@@ -1385,7 +1383,11 @@ public class ReactHorizontalScrollView extends HorizontalScrollView
     // does not shift layout. If `maintainVisibleContentPosition` is enabled, we try to adjust
     // position so that the viewport keeps the same insets to previously visible views. TODO: MVCP
     // does not work in RTL.
-    if (mReactScrollViewScrollState.getLayoutDirection() == LAYOUT_DIRECTION_RTL) {
+    int layoutDirection =
+        ReactNativeFeatureFlags.setAndroidLayoutDirection()
+            ? v.getLayoutDirection()
+            : mReactScrollViewScrollState.getLayoutDirection();
+    if (layoutDirection == LAYOUT_DIRECTION_RTL) {
       adjustPositionForContentChangeRTL(left, right, oldLeft, oldRight);
     } else if (mMaintainVisibleContentPositionHelper != null) {
       mMaintainVisibleContentPositionHelper.updateScrollPosition();

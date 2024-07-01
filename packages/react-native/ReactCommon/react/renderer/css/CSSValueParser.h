@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include <react/renderer/css/CSSAngleUnit.h>
+#include <react/renderer/css/CSSColorUtils.h>
 #include <react/renderer/css/CSSProperties.h>
 #include <react/renderer/css/CSSSyntaxParser.h>
 #include <react/renderer/css/CSSValueVariant.h>
@@ -76,7 +77,12 @@ class CSSValueParser {
               return *percentage;
             }
           }
-
+          // <color>
+          if constexpr (hasType<CSSColor>()) {
+            if (auto colorValue = consumeColorToken(token)) {
+              return *colorValue;
+            }
+          }
           return CSSValue{};
         });
     // TODO: support function component values and simple blocks
@@ -222,6 +228,46 @@ class CSSValueParser {
     // https://www.w3.org/TR/css-values-4/#ratios
     return value > 0.0f && value != +std::numeric_limits<float>::infinity() &&
         value != -std::numeric_limits<float>::infinity();
+  }
+
+  constexpr std::optional<CSSValue> consumeColorToken(
+      const CSSPreservedToken& token) {
+    if (token.type() == CSSTokenType::Ident) {
+      return parseCSSNamedColor<CSSValue>(token.stringValue());
+    } else if (token.type() != CSSTokenType::Hash) {
+      return {};
+    }
+
+    // https://www.w3.org/TR/css-color-4/#hex-color
+    std::string_view hexColorValue = token.stringValue();
+    if (isValidHexColor(hexColorValue)) {
+      if (hexColorValue.length() == 3) {
+        return CSSValue::color(
+            hexToNumeric(hexColorValue.substr(0, 1), HexColorType::Short),
+            hexToNumeric(hexColorValue.substr(1, 1), HexColorType::Short),
+            hexToNumeric(hexColorValue.substr(2, 1), HexColorType::Short),
+            255u);
+      } else if (hexColorValue.length() == 4) {
+        return CSSValue::color(
+            hexToNumeric(hexColorValue.substr(0, 1), HexColorType::Short),
+            hexToNumeric(hexColorValue.substr(1, 1), HexColorType::Short),
+            hexToNumeric(hexColorValue.substr(2, 1), HexColorType::Short),
+            hexToNumeric(hexColorValue.substr(3, 1), HexColorType::Short));
+      } else if (hexColorValue.length() == 6) {
+        return CSSValue::color(
+            hexToNumeric(hexColorValue.substr(0, 2), HexColorType::Long),
+            hexToNumeric(hexColorValue.substr(2, 2), HexColorType::Long),
+            hexToNumeric(hexColorValue.substr(4, 2), HexColorType::Long),
+            255u);
+      } else if (hexColorValue.length() == 8) {
+        return CSSValue::color(
+            hexToNumeric(hexColorValue.substr(0, 2), HexColorType::Long),
+            hexToNumeric(hexColorValue.substr(2, 2), HexColorType::Long),
+            hexToNumeric(hexColorValue.substr(4, 2), HexColorType::Long),
+            hexToNumeric(hexColorValue.substr(6, 2), HexColorType::Long));
+      }
+    }
+    return {};
   }
 
   CSSSyntaxParser parser_;
