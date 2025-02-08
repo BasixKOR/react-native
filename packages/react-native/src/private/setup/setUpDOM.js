@@ -8,8 +8,7 @@
  * @format
  */
 
-import DOMRect from '../webapis/dom/geometry/DOMRect';
-import DOMRectReadOnly from '../webapis/dom/geometry/DOMRectReadOnly';
+import {polyfillGlobal} from '../../../Libraries/Utilities/PolyfillFunctions';
 
 let initialized = false;
 
@@ -20,9 +19,23 @@ export default function setUpDOM() {
 
   initialized = true;
 
-  // $FlowExpectedError[cannot-write] The global isn't writable anywhere but here, where we define it
-  global.DOMRect = DOMRect;
+  polyfillGlobal(
+    'DOMRect',
+    () => require('../webapis/geometry/DOMRect').default,
+  );
 
-  // $FlowExpectedError[cannot-write] The global isn't writable anywhere but here, where we define it
-  global.DOMRectReadOnly = DOMRectReadOnly;
+  polyfillGlobal(
+    'DOMRectReadOnly',
+    () => require('../webapis/geometry/DOMRectReadOnly').default,
+  );
+
+  polyfillGlobal(
+    'HTMLCollection',
+    () => require('../webapis/dom/oldstylecollections/HTMLCollection').default,
+  );
+
+  polyfillGlobal(
+    'NodeList',
+    () => require('../webapis/dom/oldstylecollections/NodeList').default,
+  );
 }

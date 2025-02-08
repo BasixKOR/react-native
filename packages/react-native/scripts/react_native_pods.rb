@@ -41,9 +41,9 @@ end
 # This function prepares the project for React Native, before processing
 # all the target exposed by the framework.
 def prepare_react_native_project!
-  # Temporary solution to suppress duplicated GUID error.
+  # Temporary solution to suppress duplicated GUID error & master specs repo warning.
   # Can be removed once we move to generate files outside pod install.
-  install! 'cocoapods', :deterministic_uuids => false
+  install! 'cocoapods', :deterministic_uuids => false, :warn_for_unused_master_specs_repo => false
 
   ReactNativePodsUtils.create_xcode_env_if_missing
 end
@@ -73,6 +73,10 @@ def use_react_native! (
   ENV['APP_PATH'] = app_path
   ENV['REACT_NATIVE_PATH'] = path
 
+  # We set RCT_SKIP_CODEGEN to true, if the user wants to skip the running Codegen step from Cocoapods.
+  # This is needed as part of our migration away from cocoapods
+  ENV['RCT_SKIP_CODEGEN'] = ENV['RCT_SKIP_CODEGEN'] == '1' || ENV['RCT_IGNORE_PODS_DEPRECATION'] == '1' ? '1' : '0'
+
   ReactNativePodsUtils.check_minimum_required_xcode()
 
   # Current target definition is provided by Cocoapods and it refers to the target
@@ -85,18 +89,18 @@ def use_react_native! (
   # Better to rely and enable this environment flag if the new architecture is turned on using flags.
   relative_path_from_current = Pod::Config.instance.installation_root.relative_path_from(Pathname.pwd)
   react_native_version = NewArchitectureHelper.extract_react_native_version(File.join(relative_path_from_current, path))
-  ENV['RCT_NEW_ARCH_ENABLED'] = NewArchitectureHelper.compute_new_arch_enabled(new_arch_enabled, react_native_version)
   fabric_enabled = fabric_enabled || NewArchitectureHelper.new_arch_enabled
 
   ENV['RCT_FABRIC_ENABLED'] = fabric_enabled ? "1" : "0"
   ENV['USE_HERMES'] = hermes_enabled ? "1" : "0"
   ENV['RCT_AGGREGATE_PRIVACY_FILES'] = privacy_file_aggregation_enabled ? "1" : "0"
+  ENV["RCT_NEW_ARCH_ENABLED"] = new_arch_enabled ? "1" : "0"
 
   prefix = path
 
   ReactNativePodsUtils.warn_if_not_on_arm64()
 
-  build_codegen!(prefix, relative_path_from_current)
+  Pod::UI.puts "Configuring the target with the #{new_arch_enabled ? "New" : "Legacy"} Architecture\n"
 
   # The Pods which should be included in all projects
   pod 'FBLazyVector', :path => "#{prefix}/Libraries/FBLazyVector"
@@ -128,8 +132,8 @@ def use_react_native! (
   pod 'React-defaultsnativemodule', :path => "#{prefix}/ReactCommon/react/nativemodule/defaults"
   pod 'React-Mapbuffer', :path => "#{prefix}/ReactCommon"
   pod 'React-jserrorhandler', :path => "#{prefix}/ReactCommon/jserrorhandler"
-  pod 'React-nativeconfig', :path => "#{prefix}/ReactCommon"
   pod 'RCTDeprecation', :path => "#{prefix}/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
+  pod 'React-RCTFBReactNativeSpec', :path => "#{prefix}/React"
 
   if hermes_enabled
     setup_hermes!(:react_native_path => prefix)
@@ -139,6 +143,7 @@ def use_react_native! (
 
   pod 'React-jsiexecutor', :path => "#{prefix}/ReactCommon/jsiexecutor"
   pod 'React-jsinspector', :path => "#{prefix}/ReactCommon/jsinspector-modern"
+  pod 'React-jsinspectortracing', :path => "#{prefix}/ReactCommon/jsinspector-modern/tracing"
 
   pod 'React-callinvoker', :path => "#{prefix}/ReactCommon/callinvoker"
   pod 'React-performancetimeline', :path => "#{prefix}/ReactCommon/react/performance/timeline"
@@ -175,6 +180,7 @@ def use_react_native! (
   )
 
   pod 'ReactCodegen', :path => $CODEGEN_OUTPUT_DIR, :modular_headers => true
+  pod 'ReactAppDependencyProvider', :path => $CODEGEN_OUTPUT_DIR, :modular_headers => true
 
   # Always need fabric to access the RCTSurfacePresenterBridgeAdapter which allow to enable the RuntimeScheduler
   # If the New Arch is turned off, we will use the Old Renderer, though.
@@ -361,6 +367,25 @@ def rct_cxx_language_standard()
   return Helpers::Constants.cxx_language_standard
 end
 
+def print_cocoapods_deprecation_message()
+  if ENV["RCT_IGNORE_PODS_DEPRECATION"] == "1"
+    return
+  end
+
+  puts ''
+  puts '==================== DEPRECATION NOTICE ====================='.yellow
+  puts 'Calling `pod install` directly is deprecated in React Native'.yellow
+  puts 'because we are moving away from Cocoapods toward alternative'.yellow
+  puts 'solutions to build the project.'.yellow
+  puts '* If you are using Expo, please run:'.yellow
+  puts '`npx expo run:ios`'.yellow
+  puts '* If you are using the Community CLI, please run:'.yellow
+  puts '`yarn ios`'.yellow
+  puts '============================================================='.yellow
+  puts ''
+
+end
+
 # Function that executes after React Native has been installed to configure some flags and build settings.
 #
 # Parameters
@@ -410,6 +435,6 @@ def react_native_post_install(
   NewArchitectureHelper.set_clang_cxx_language_standard_if_needed(installer)
   NewArchitectureHelper.modify_flags_for_new_architecture(installer, NewArchitectureHelper.new_arch_enabled)
 
-
+  print_cocoapods_deprecation_message
   Pod::UI.puts "Pod install took #{Time.now.to_i - $START_TIME} [s] to run".green
 end

@@ -19,10 +19,7 @@ import isDevServerRunning from '../../utils/isDevServerRunning';
 import loadMetroConfig from '../../utils/loadMetroConfig';
 import * as version from '../../utils/version';
 import attachKeyHandlers from './attachKeyHandlers';
-import {
-  createDevServerMiddleware,
-  indexPageMiddleware,
-} from '@react-native-community/cli-server-api';
+import {createDevServerMiddleware} from './middleware';
 import {createDevMiddleware} from '@react-native/dev-middleware';
 import chalk from 'chalk';
 import Metro from 'metro';
@@ -149,11 +146,7 @@ async function runServer(
     secure: args.https,
     secureCert: args.cert,
     secureKey: args.key,
-    unstable_extraMiddleware: [
-      communityMiddleware,
-      indexPageMiddleware,
-      middleware,
-    ],
+    unstable_extraMiddleware: [communityMiddleware, middleware],
     websocketEndpoints: {
       ...communityWebsocketEndpoints,
       ...websocketEndpoints,

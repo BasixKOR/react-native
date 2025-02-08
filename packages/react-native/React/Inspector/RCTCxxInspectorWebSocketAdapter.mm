@@ -60,6 +60,14 @@ NSString *NSStringFromUTF8StringView(std::string_view view)
   [_webSocket closeWithCode:1000 reason:@"End of session"];
 }
 
+- (void)webSocketDidOpen:(__unused SRWebSocket *)webSocket
+{
+  // NOTE: We are on the main queue here, per SRWebSocket's defaults.
+  if (auto delegate = _delegate.lock()) {
+    delegate->didOpen();
+  }
+}
+
 - (void)webSocket:(__unused SRWebSocket *)webSocket didFailWithError:(NSError *)error
 {
   // NOTE: We are on the main queue here, per SRWebSocket's defaults.

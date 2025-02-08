@@ -86,6 +86,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
+import kotlin.jvm.functions.Function1;
 
 /**
  * A ReactHost is an object that manages a single {@link ReactInstance}. A ReactHost can be
@@ -315,7 +316,7 @@ public class ReactHostImpl implements ReactHost {
     setCurrentActivity(activity);
     ReactContext currentContext = getCurrentReactContext();
 
-    // TODO(T137233065): Enable DevSupportManager here
+    maybeEnableDevSupport(true);
     mReactLifecycleStateManager.moveToOnHostResume(currentContext, getCurrentActivity());
   }
 
@@ -353,7 +354,7 @@ public class ReactHostImpl implements ReactHost {
               + activityClass);
     }
 
-    // TODO(T137233065): Disable DevSupportManager here
+    maybeEnableDevSupport(false);
     mDefaultHardwareBackBtnHandler = null;
     mReactLifecycleStateManager.moveToOnHostPause(currentContext, currentActivity);
   }
@@ -367,7 +368,7 @@ public class ReactHostImpl implements ReactHost {
 
     ReactContext currentContext = getCurrentReactContext();
 
-    // TODO(T137233065): Disable DevSupportManager here
+    maybeEnableDevSupport(false);
     mDefaultHardwareBackBtnHandler = null;
     mReactLifecycleStateManager.moveToOnHostPause(currentContext, getCurrentActivity());
   }
@@ -379,7 +380,7 @@ public class ReactHostImpl implements ReactHost {
     final String method = "onHostDestroy()";
     log(method);
 
-    // TODO(T137233065): Disable DevSupportManager here
+    maybeEnableDevSupport(false);
     moveToHostDestroy(getCurrentReactContext());
   }
 
@@ -391,9 +392,15 @@ public class ReactHostImpl implements ReactHost {
 
     Activity currentActivity = getCurrentActivity();
 
-    // TODO(T137233065): Disable DevSupportManager here
     if (currentActivity == activity) {
+      maybeEnableDevSupport(false);
       moveToHostDestroy(getCurrentReactContext());
+    }
+  }
+
+  private void maybeEnableDevSupport(boolean enabled) {
+    if (mUseDevSupport) {
+      mDevSupportManager.setDevSupportEnabled(enabled);
     }
   }
 
@@ -546,8 +553,48 @@ public class ReactHostImpl implements ReactHost {
    * Entrypoint to destroy the ReactInstance. If the ReactInstance is reloading, will wait until
    * reload is finished, before destroying.
    *
-   * @param reason {@link String} describing why ReactHost is being destroyed (e.g. memmory
-   *     pressure)
+   * <p>The destroy operation is asynchronous and the task returned by this method will complete
+   * when React Native gets destroyed. Note that the destroy operation will execute in multiple
+   * threads, in particular some of the sub-tasks will run in the UIThread. Calling {@link
+   * TaskInterface#waitForCompletion()} from the UIThread will lead into a deadlock. Use
+   * onDestroyFinished callback to be notified when React Native gets destroyed.
+   *
+   * @param reason describing why ReactHost is being destroyed (e.g. memory pressure)
+   * @param ex exception that caused the trigger to destroy ReactHost (or null) This exception will
+   *     be used to log properly the cause of destroy operation.
+   * @param onDestroyFinished callback that will be called when React Native gets destroyed, the
+   *     callback will run on a background thread.
+   * @return A task that completes when React Native gets destroyed.
+   */
+  @NonNull
+  @Override
+  public TaskInterface<Void> destroy(
+      @NonNull String reason,
+      @Nullable Exception ex,
+      @NonNull Function1<? super Boolean, Unit> onDestroyFinished) {
+    Task<Void> task = (Task<Void>) destroy(reason, ex);
+    return task.continueWith(
+        new Continuation<Void, Void>() {
+          @Nullable
+          @Override
+          public Void then(@NonNull Task<Void> task) throws Exception {
+            boolean instanceDestroyedSuccessfully = task.isCompleted() && !task.isFaulted();
+            onDestroyFinished.invoke(instanceDestroyedSuccessfully);
+            return null;
+          }
+        });
+  }
+
+  /**
+   * Entrypoint to destroy the ReactInstance. If the ReactInstance is reloading, will wait until
+   * reload is finished, before destroying.
+   *
+   * <p>The destroy operation is asynchronous and the task returned by this method will complete
+   * when React Native gets destroyed. Note that the destroy operation will execute in multiple
+   * threads, in particular some of the sub-tasks will run in the UIThread. Calling {@link
+   * TaskInterface#waitForCompletion()} from the UIThread will lead into a deadlock.
+   *
+   * @param reason {@link String} describing why ReactHost is being destroyed (e.g. memory pressure)
    * @param ex {@link Exception} exception that caused the trigger to destroy ReactHost (or null)
    *     This exception will be used to log properly the cause of destroy operation.
    * @return A task that completes when React Native gets destroyed.
@@ -979,12 +1026,6 @@ public class ReactHostImpl implements ReactHost {
         TAG, new ReactNoCrashSoftException(method + ": " + message, throwable));
   }
 
-  private Executor getDefaultReactInstanceExecutor() {
-    return ReactNativeFeatureFlags.useImmediateExecutorInAndroidBridgeless()
-        ? Task.IMMEDIATE_EXECUTOR
-        : mBGExecutor;
-  }
-
   /** Schedule work on a ReactInstance that is already created. */
   private Task<Boolean> callWithExistingReactInstance(
       final String callingMethod,
@@ -993,17 +1034,14 @@ public class ReactHostImpl implements ReactHost {
     final String method = "callWithExistingReactInstance(" + callingMethod + ")";
 
     if (executor == null) {
-      executor = getDefaultReactInstanceExecutor();
+      executor = Task.IMMEDIATE_EXECUTOR;
     }
 
     return mCreateReactInstanceTaskRef
         .get()
         .onSuccess(
             task -> {
-              final ReactInstance reactInstance =
-                  ReactNativeFeatureFlags.completeReactInstanceCreationOnBgThreadOnAndroid()
-                      ? task.getResult()
-                      : mReactInstance;
+              final ReactInstance reactInstance = task.getResult();
               if (reactInstance == null) {
                 raiseSoftException(method, "Execute: reactInstance is null. Dropping work.");
                 return FALSE;
@@ -1023,16 +1061,13 @@ public class ReactHostImpl implements ReactHost {
     final String method = "callAfterGetOrCreateReactInstance(" + callingMethod + ")";
 
     if (executor == null) {
-      executor = getDefaultReactInstanceExecutor();
+      executor = Task.IMMEDIATE_EXECUTOR;
     }
 
     return getOrCreateReactInstance()
         .onSuccess(
             task -> {
-              final ReactInstance reactInstance =
-                  ReactNativeFeatureFlags.completeReactInstanceCreationOnBgThreadOnAndroid()
-                      ? task.getResult()
-                      : mReactInstance;
+              final ReactInstance reactInstance = task.getResult();
               if (reactInstance == null) {
                 raiseSoftException(method, "Execute: reactInstance is null. Dropping work.");
                 return null;
@@ -1233,13 +1268,9 @@ public class ReactHostImpl implements ReactHost {
                 return reactInstance;
               };
 
-          if (ReactNativeFeatureFlags.completeReactInstanceCreationOnBgThreadOnAndroid()) {
-            creationTask.onSuccess(lifecycleUpdateTask, mUIExecutor);
-            return creationTask.onSuccess(
-                task -> task.getResult().mInstance, Task.IMMEDIATE_EXECUTOR);
-          } else {
-            return creationTask.onSuccess(lifecycleUpdateTask, mUIExecutor);
-          }
+          creationTask.onSuccess(lifecycleUpdateTask, mUIExecutor);
+          return creationTask.onSuccess(
+              task -> task.getResult().mInstance, Task.IMMEDIATE_EXECUTOR);
         });
   }
 
@@ -1433,12 +1464,10 @@ public class ReactHostImpl implements ReactHost {
     if (mReloadTask == null) {
       // When using the immediate executor, we want to avoid scheduling any further work immediately
       // when destruction is kicked off.
-      Task<ReactInstance> createTask =
-          ReactNativeFeatureFlags.completeReactInstanceCreationOnBgThreadOnAndroid()
-              ? mCreateReactInstanceTaskRef.getAndReset()
-              : mCreateReactInstanceTaskRef.get();
+      log(method, "Resetting createReactInstance task ref");
       mReloadTask =
-          createTask
+          mCreateReactInstanceTaskRef
+              .getAndReset()
               .continueWithTask(
                   (task) -> {
                     log(method, "Starting React Native reload");
@@ -1523,14 +1552,6 @@ public class ReactHostImpl implements ReactHost {
                       reactInstance.destroy();
                     }
 
-                    // Originally, we reset the instance task ref quite late, leading to potential
-                    // racing invocations while shutting down
-                    if (!ReactNativeFeatureFlags
-                        .completeReactInstanceCreationOnBgThreadOnAndroid()) {
-                      log(method, "Resetting createReactInstance task ref");
-                      mCreateReactInstanceTaskRef.reset();
-                    }
-
                     log(method, "Resetting start task ref");
                     mStartTask = null;
 
@@ -1609,13 +1630,10 @@ public class ReactHostImpl implements ReactHost {
     if (mDestroyTask == null) {
       // When using the immediate executor, we want to avoid scheduling any further work immediately
       // when destruction is kicked off.
-      Task<ReactInstance> createTask =
-          ReactNativeFeatureFlags.completeReactInstanceCreationOnBgThreadOnAndroid()
-              ? mCreateReactInstanceTaskRef.getAndReset()
-              : mCreateReactInstanceTaskRef.get();
-
+      log(method, "Resetting createReactInstance task ref");
       mDestroyTask =
-          createTask
+          mCreateReactInstanceTaskRef
+              .getAndReset()
               .continueWithTask(
                   task -> {
                     log(method, "Starting React Native destruction");
@@ -1719,14 +1737,6 @@ public class ReactHostImpl implements ReactHost {
 
                       log(method, "Destroying ReactInstance");
                       reactInstance.destroy();
-                    }
-
-                    // Originally, we reset the instance task ref quite late, leading to potential
-                    // racing invocations while shutting down
-                    if (!ReactNativeFeatureFlags
-                        .completeReactInstanceCreationOnBgThreadOnAndroid()) {
-                      log(method, "Resetting createReactInstance task ref");
-                      mCreateReactInstanceTaskRef.reset();
                     }
 
                     log(method, "Resetting start task ref");

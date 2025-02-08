@@ -11,6 +11,7 @@
 
 'use strict';
 
+const chalk = require('chalk');
 const {execSync: exec} = require('child_process');
 const fetch = require('node-fetch');
 
@@ -30,6 +31,18 @@ type WorkflowRun = {
   url: string,
   created_at: string,
   conclusion: "success" | "failure" | "neutral" | "cancelled" | "skipped" | "timed_out" | "action_required" | null,
+  head_commit: {
+    author: {
+      name: string,
+    },
+    message: string,
+    ...
+  };
+  triggering_actor: {
+    login: string,
+    ...
+  };
+  run_started_at: string,
 };
 
 
@@ -102,6 +115,13 @@ async function _getArtifacts(run_id /*: number */) /*: Promise<Artifacts> */ {
   return body;
 }
 
+function quote(text /*: string*/, prefix /*: string */ = ' > ') {
+  return text
+    .split('\n')
+    .map(line => prefix + line)
+    .join('\n');
+}
+
 // === Public Interface === //
 async function initialize(
   ciToken /*: string */,
@@ -149,6 +169,21 @@ async function initialize(
       ) ?? workflow;
   }
 
+  const commit = workflow.head_commit;
+  const hours =
+    (new Date().getTime() - new Date(workflow.run_started_at).getTime()) /
+    (60 * 60 * 1000);
+  const started_by = workflow.triggering_actor.login;
+
+  console.log(
+    chalk.green(`The artifact being used is from a workflow started ${chalk.bold.magentaBright(hours.toFixed(0))} hours ago by ${chalk.bold.magentaBright(started_by)}:
+
+Author: ${chalk.bold(commit.author.name)}
+Message:
+${chalk.magentaBright(quote(commit.message))}
+  `),
+  );
+
   artifacts = await _getArtifacts(workflow.id);
 }
 
@@ -177,6 +212,14 @@ async function artifactURLForHermesRNTesterAPK(
   emulatorArch /*: string */,
 ) /*: Promise<string> */ {
   return getArtifactURL('rntester-hermes-debug');
+}
+
+async function artifactURLForJSCRNTesterApp() /*: Promise<string> */ {
+  return getArtifactURL('RNTesterApp-NewArch-JSC-Debug');
+}
+
+async function artifactURLForHermesRNTesterApp() /*: Promise<string> */ {
+  return getArtifactURL('RNTesterApp-NewArch-Hermes-Debug');
 }
 
 async function artifactURLForMavenLocal() /*: Promise<string> */ {
@@ -212,6 +255,8 @@ module.exports = {
   downloadArtifact,
   artifactURLForJSCRNTesterAPK,
   artifactURLForHermesRNTesterAPK,
+  artifactURLForJSCRNTesterApp,
+  artifactURLForHermesRNTesterApp,
   artifactURLForMavenLocal,
   artifactURLHermesDebug,
   artifactURLForReactNative,

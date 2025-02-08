@@ -18,7 +18,7 @@ import android.graphics.PathEffect
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
-import com.facebook.react.uimanager.PixelUtil.dpToPx
+import com.facebook.react.uimanager.PixelUtil.pxToDp
 import com.facebook.react.uimanager.style.BorderRadiusStyle
 import com.facebook.react.uimanager.style.ComputedBorderRadius
 import com.facebook.react.uimanager.style.CornerRadii
@@ -45,7 +45,7 @@ internal class OutlineDrawable(
    */
   private val gapBetweenPaths = 0.8f
 
-  public var outlineOffset: Float = outlineOffset
+  var outlineOffset: Float = outlineOffset
     set(value) {
       if (value != field) {
         field = value
@@ -53,7 +53,7 @@ internal class OutlineDrawable(
       }
     }
 
-  public var outlineStyle: OutlineStyle = outlineStyle
+  var outlineStyle: OutlineStyle = outlineStyle
     set(value) {
       if (value != field) {
         field = value
@@ -62,7 +62,7 @@ internal class OutlineDrawable(
       }
     }
 
-  public var outlineColor: Int = outlineColor
+  var outlineColor: Int = outlineColor
     set(value) {
       if (value != field) {
         field = value
@@ -71,7 +71,7 @@ internal class OutlineDrawable(
       }
     }
 
-  public var outlineWidth: Float = outlineWidth
+  var outlineWidth: Float = outlineWidth
     set(value) {
       if (value != field) {
         field = value
@@ -123,7 +123,7 @@ internal class OutlineDrawable(
 
     computedBorderRadius =
         borderRadius?.resolve(
-            layoutDirection, context, bounds.width().dpToPx(), bounds.height().dpToPx())
+            layoutDirection, context, bounds.width().pxToDp(), bounds.height().pxToDp())
 
     updateOutlineRect()
     if (computedBorderRadius != null && computedBorderRadius?.hasRoundedBorders() == true) {

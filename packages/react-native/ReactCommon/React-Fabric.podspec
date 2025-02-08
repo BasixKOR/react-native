@@ -150,6 +150,14 @@ Pod::Spec.new do |s|
       sss.pod_target_xcconfig  = { "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/Headers/Private/Yoga\"" }
     end
 
+    ss.subspec "scrollview" do |sss|
+      sss.dependency             folly_dep_name, folly_version
+      sss.compiler_flags       = folly_compiler_flags
+      sss.source_files         = "react/renderer/components/scrollview/*.{m,mm,cpp,h}"
+      sss.header_dir           = "react/renderer/components/scrollview"
+      ss.exclude_files         = "react/renderer/components/scrollview/tests"
+    end
+
     ss.subspec "legacyviewmanagerinterop" do |sss|
       sss.dependency             folly_dep_name, folly_version
       sss.compiler_flags       = folly_compiler_flags
@@ -221,6 +229,13 @@ Pod::Spec.new do |s|
 
   end
 
+  s.subspec "consistency" do |ss|
+    ss.dependency             folly_dep_name, folly_version
+    ss.compiler_flags       = folly_compiler_flags
+    ss.source_files         = "react/renderer/consistency/**/*.{m,mm,cpp,h}"
+    ss.header_dir           = "react/renderer/consistency"
+  end
+
   s.subspec "uimanager" do |ss|
     ss.subspec "consistency" do |sss|
       sss.dependency             folly_dep_name, folly_version
@@ -249,6 +264,7 @@ Pod::Spec.new do |s|
     {
       :name => '[RN]Check rncore',
       :execution_position => :before_compile,
+      :always_out_of_date => '1',
       :script => <<-EOS
 echo "Checking whether Codegen has run..."
 rncorePath="$REACT_NATIVE_PATH/ReactCommon/react/renderer/components/rncore"

@@ -84,6 +84,7 @@ export * from '../Libraries/Components/Clipboard/Clipboard';
 export * from '../Libraries/Components/DrawerAndroid/DrawerLayoutAndroid';
 export * from '../Libraries/Components/Keyboard/Keyboard';
 export * from '../Libraries/Components/Keyboard/KeyboardAvoidingView';
+export * from '../Libraries/Components/LayoutConformance/LayoutConformance';
 export * from '../Libraries/Components/Pressable/Pressable';
 export * from '../Libraries/Components/ProgressBarAndroid/ProgressBarAndroid';
 export * from '../Libraries/Components/RefreshControl/RefreshControl';
@@ -147,7 +148,6 @@ export * from '../Libraries/Utilities/Dimensions';
 export * from '../Libraries/Utilities/PixelRatio';
 export * from '../Libraries/Utilities/Platform';
 export * from '../Libraries/Vibration/Vibration';
-export * from '../Libraries/YellowBox/YellowBoxDeprecated';
 export * from '../Libraries/vendor/core/ErrorUtils';
 export {
   EmitterSubscription,
@@ -183,10 +183,6 @@ declare global {
     groupCollapsed(label?: string): void;
     groupEnd(): void;
     group(label?: string): void;
-    /**
-     * @deprecated Use LogBox.ignoreLogs(patterns) instead
-     */
-    ignoredYellowBox: string[];
   }
 
   var console: Console;

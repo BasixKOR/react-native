@@ -10,11 +10,11 @@
 
 // flowlint unsafe-getters-setters:off
 
+import type {IntersectionObserverId} from './internals/IntersectionObserverManager';
 import type IntersectionObserverEntry from './IntersectionObserverEntry';
-import type {IntersectionObserverId} from './IntersectionObserverManager';
 
 import ReactNativeElement from '../dom/nodes/ReactNativeElement';
-import * as IntersectionObserverManager from './IntersectionObserverManager';
+import * as IntersectionObserverManager from './internals/IntersectionObserverManager';
 
 export type IntersectionObserverCallback = (
   entries: Array<IntersectionObserverEntry>,
@@ -25,6 +25,18 @@ type IntersectionObserverInit = {
   // root?: ReactNativeElement, // This option exists on the Web but it's not currently supported in React Native.
   // rootMargin?: string, // This option exists on the Web but it's not currently supported in React Native.
   threshold?: number | $ReadOnlyArray<number>,
+
+  /**
+   * This is a React Native specific option (not spec compliant) that specifies
+   * ratio threshold(s) of the intersection area to the total `root` area.
+   *
+   * If set, it will either be a singular ratio value between 0-1 (inclusive)
+   * or an array of such ratios.
+   *
+   * Note: If `rnRootThreshold` is set, and `threshold` is not set,
+   * `threshold` will not default to [0] (as per spec)
+   */
+  rnRootThreshold?: number | $ReadOnlyArray<number>,
 };
 
 /**
@@ -44,13 +56,16 @@ type IntersectionObserverInit = {
  * elements with the same observer.
  *
  * This implementation only supports the `threshold` option at the moment
- * (`root` and `rootMargin` are not supported).
+ * (`root` and `rootMargin` are not supported) and provides a React Native specific
+ * option `rnRootThreshold`.
+ *
  */
 export default class IntersectionObserver {
   _callback: IntersectionObserverCallback;
   _thresholds: $ReadOnlyArray<number>;
   _observationTargets: Set<ReactNativeElement> = new Set();
   _intersectionObserverId: ?IntersectionObserverId;
+  _rootThresholds: $ReadOnlyArray<number> | null;
 
   constructor(
     callback: IntersectionObserverCallback,
@@ -83,7 +98,12 @@ export default class IntersectionObserver {
     }
 
     this._callback = callback;
-    this._thresholds = normalizeThresholds(options?.threshold);
+
+    this._rootThresholds = normalizeRootThreshold(options?.rnRootThreshold);
+    this._thresholds = normalizeThreshold(
+      options?.threshold,
+      this._rootThresholds != null, // only provide default if no rootThreshold
+    );
   }
 
   /**
@@ -115,12 +135,25 @@ export default class IntersectionObserver {
    * A list of thresholds, sorted in increasing numeric order, where each
    * threshold is a ratio of intersection area to bounding box area of an
    * observed target.
-   * Notifications for a target are generated when any of the thresholds are
-   * crossed for that target.
-   * If no value was passed to the constructor, `0` is used.
+   * Notifications for a target are generated when any of the thresholds specified
+   * in `rnRootThreshold` or `threshold` are crossed for that target.
+   *
+   * If no value was passed to the constructor, and no `rnRootThreshold`
+   * is set, `0` is used.
    */
   get thresholds(): $ReadOnlyArray<number> {
     return this._thresholds;
+  }
+
+  /**
+   * A list of root thresholds, sorted in increasing numeric order, where each
+   * threshold is a ratio of intersection area to bounding box area of the specified
+   * root view, which defaults to the viewport.
+   * Notifications for a target are generated when any of the thresholds specified
+   * in `rnRootThreshold` or `threshold` are crossed for that target.
+   */
+  get rnRootThresholds(): $ReadOnlyArray<number> | null {
+    return this._rootThresholds;
   }
 
   /**
@@ -221,32 +254,84 @@ export default class IntersectionObserver {
  * Converts the user defined `threshold` value into an array of sorted valid
  * threshold options for `IntersectionObserver` (double ∈ [0, 1]).
  *
+ * If `defaultEmpty` is true, then defaults to empty array, otherwise [0].
+ *
  * @example
  * normalizeThresholds(0.5);                // → [0.5]
  * normalizeThresholds([1, 0.5, 0]);        // → [0, 0.5, 1]
  * normalizeThresholds(['1', '0.5', '0']);  // → [0, 0.5, 1]
+ * normalizeThresholds(null);               // → [0]
+ * normalizeThresholds([null, null]);       // → [0, 0]
+ *
+ * normalizeThresholds([null], true);       // → [0]
+ * normalizeThresholds(null, true);         // → []
+ * normalizeThresholds([], true);           // → []
  */
-function normalizeThresholds(threshold: mixed): $ReadOnlyArray<number> {
+function normalizeThreshold(
+  threshold: mixed,
+  defaultEmpty: boolean = false,
+): $ReadOnlyArray<number> {
   if (Array.isArray(threshold)) {
     if (threshold.length > 0) {
-      return threshold.map(normalizeThresholdValue).sort();
+      return threshold
+        .map(t => normalizeThresholdValue(t, 'threshold'))
+        .map(t => t ?? 0)
+        .sort();
+    } else if (defaultEmpty) {
+      return [];
     } else {
       return [0];
     }
   }
 
-  return [normalizeThresholdValue(threshold)];
+  const normalized = normalizeThresholdValue(threshold, 'threshold');
+  if (normalized == null) {
+    return defaultEmpty ? [] : [0];
+  }
+
+  return [normalized];
 }
 
-function normalizeThresholdValue(threshold: mixed): number {
+/**
+ * Converts the user defined `rnRootThreshold` value into an array of sorted valid
+ * threshold options for `IntersectionObserver` (double ∈ [0, 1]).
+ *
+ * If invalid array or null, returns null.
+ *
+ * @example
+ * normalizeRootThreshold(0.5);                 // → [0.5]
+ * normalizeRootThresholds([1, 0.5, 0]);        // → [0, 0.5, 1]
+ * normalizeRootThresholds([null, '0.5', '0']); // → [0, 0.5]
+ * normalizeRootThresholds(null);               // → null
+ * normalizeRootThresholds([null, null]);       // → null
+ */
+function normalizeRootThreshold(
+  rootThreshold: mixed,
+): null | $ReadOnlyArray<number> {
+  if (Array.isArray(rootThreshold)) {
+    const normalizedArr = rootThreshold
+      .map(rt => normalizeThresholdValue(rt, 'rnRootThreshold'))
+      .filter((rt): rt is number => rt != null)
+      .sort();
+    return normalizedArr.length === 0 ? null : normalizedArr;
+  }
+
+  const normalized = normalizeThresholdValue(rootThreshold, 'rnRootThreshold');
+  return normalized == null ? null : [normalized];
+}
+
+function normalizeThresholdValue(
+  threshold: mixed,
+  property: string,
+): null | number {
   if (threshold == null) {
-    return 0;
+    return null;
   }
 
   const thresholdAsNumber = Number(threshold);
   if (!Number.isFinite(thresholdAsNumber)) {
     throw new TypeError(
-      "Failed to read the 'threshold' property from 'IntersectionObserverInit': The provided double value is non-finite.",
+      `Failed to read the '${property}' property from 'IntersectionObserverInit': The provided double value is non-finite.`,
     );
   }
 

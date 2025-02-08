@@ -105,13 +105,10 @@ public object BackgroundStyleApplicator {
 
     composite.borderInsets = composite.borderInsets ?: BorderInsets()
     composite.borderInsets?.setBorderWidth(edge, width)
-    if (Build.VERSION.SDK_INT >= MIN_INSET_BOX_SHADOW_SDK_VERSION) {
-      composite.borderInsets = composite.borderInsets ?: BorderInsets()
-      composite.borderInsets?.setBorderWidth(edge, width)
 
-      for (shadow in composite.innerShadows) {
-        (shadow as InsetBoxShadowDrawable).borderInsets = composite.borderInsets
-        shadow.invalidateSelf()
+    if (Build.VERSION.SDK_INT >= MIN_INSET_BOX_SHADOW_SDK_VERSION) {
+      for (shadow in composite.innerShadows.filterIsInstance<InsetBoxShadowDrawable>()) {
+        shadow.borderInsets = composite.borderInsets
       }
     }
   }
@@ -172,18 +169,16 @@ public object BackgroundStyleApplicator {
     }
 
     if (Build.VERSION.SDK_INT >= MIN_OUTSET_BOX_SHADOW_SDK_VERSION) {
-      for (shadow in compositeBackgroundDrawable.outerShadows) {
-        if (shadow is OutsetBoxShadowDrawable) {
-          shadow.borderRadius = compositeBackgroundDrawable.borderRadius
-        }
+      for (shadow in
+          compositeBackgroundDrawable.outerShadows.filterIsInstance<OutsetBoxShadowDrawable>()) {
+        shadow.borderRadius = compositeBackgroundDrawable.borderRadius
       }
     }
 
     if (Build.VERSION.SDK_INT >= MIN_INSET_BOX_SHADOW_SDK_VERSION) {
-      for (shadow in compositeBackgroundDrawable.innerShadows) {
-        if (shadow is InsetBoxShadowDrawable) {
-          shadow.borderRadius = compositeBackgroundDrawable.borderRadius
-        }
+      for (shadow in
+          compositeBackgroundDrawable.innerShadows.filterIsInstance<InsetBoxShadowDrawable>()) {
+        shadow.borderRadius = compositeBackgroundDrawable.borderRadius
       }
     }
 
@@ -277,13 +272,17 @@ public object BackgroundStyleApplicator {
       return
     }
 
-    val outerShadows = mutableListOf<OutsetBoxShadowDrawable>()
-    val innerShadows = mutableListOf<InsetBoxShadowDrawable>()
+    var innerShadows = mutableListOf<InsetBoxShadowDrawable>()
+    var outerShadows = mutableListOf<OutsetBoxShadowDrawable>()
 
     val compositeBackgroundDrawable = ensureCompositeBackgroundDrawable(view)
     val borderInsets = compositeBackgroundDrawable.borderInsets
     val borderRadius = compositeBackgroundDrawable.borderRadius
 
+    /**
+     * z-ordering of user-provided shadow-list is opposite direction of LayerDrawable z-ordering
+     * https://drafts.csswg.org/css-backgrounds/#shadow-layers
+     */
     for (boxShadow in shadows) {
       val offsetX = boxShadow.offsetX
       val offsetY = boxShadow.offsetY

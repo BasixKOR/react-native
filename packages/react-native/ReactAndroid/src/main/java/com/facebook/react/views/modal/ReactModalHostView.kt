@@ -21,11 +21,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewStructure
 import android.view.Window
-import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import androidx.annotation.UiThread
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.facebook.common.logging.FLog
 import com.facebook.react.R
 import com.facebook.react.bridge.GuardedRunnable
@@ -48,6 +50,7 @@ import com.facebook.react.uimanager.events.EventDispatcher
 import com.facebook.react.views.common.ContextUtils
 import com.facebook.react.views.view.ReactViewGroup
 import com.facebook.react.views.view.setStatusBarTranslucency
+import com.facebook.react.views.view.setSystemBarsTranslucency
 import java.util.Objects
 
 /**
@@ -74,6 +77,12 @@ public class ReactModalHostView(context: ThemedReactContext) :
   public var onShowListener: DialogInterface.OnShowListener? = null
   public var onRequestCloseListener: OnRequestCloseListener? = null
   public var statusBarTranslucent: Boolean = false
+    set(value) {
+      field = value
+      createNewDialog = true
+    }
+
+  public var navigationBarTranslucent: Boolean = false
     set(value) {
       field = value
       createNewDialog = true
@@ -213,6 +222,15 @@ public class ReactModalHostView(context: ThemedReactContext) :
 
   private fun getCurrentActivity(): Activity? = (context as ThemedReactContext).currentActivity
 
+  private fun isFlagSecureSet(activity: Activity?): Boolean {
+    if (activity == null) {
+      return false
+    }
+
+    val flags = activity.window.attributes.flags
+    return (flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+  }
+
   /**
    * showOrUpdate will display the Dialog. It is called by the manager once all properties are set
    * because we need to know all of them before creating the Dialog. It is also smart during updates
@@ -286,6 +304,11 @@ public class ReactModalHostView(context: ThemedReactContext) :
     if (hardwareAccelerated) {
       newDialog.window?.addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
     }
+    val flagSecureSet = isFlagSecureSet(currentActivity)
+    if (flagSecureSet) {
+      newDialog.window?.setFlags(
+          WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+    }
     if (currentActivity?.isFinishing == false) {
       newDialog.show()
       updateSystemAppearance()
@@ -300,7 +323,14 @@ public class ReactModalHostView(context: ThemedReactContext) :
      * changed. This has the pleasant side-effect of us not having to preface all Modals with "top:
      * statusBarHeight", since that margin will be included in the FrameLayout.
      */
-    get() = FrameLayout(context).apply { addView(dialogRootViewGroup) }
+    get() =
+        FrameLayout(context).apply {
+          addView(dialogRootViewGroup)
+          if (!statusBarTranslucent) {
+            // this is needed to prevent content hiding behind systems bars < API 30
+            this.fitsSystemWindows = true
+          }
+        }
 
   /**
    * updateProperties will update the properties that do not require us to recreate the dialog
@@ -328,7 +358,12 @@ public class ReactModalHostView(context: ThemedReactContext) :
         }
       }
 
-      dialogWindow.setStatusBarTranslucency(statusBarTranslucent)
+      // Navigation bar cannot be translucent without status bar being translucent too
+      dialogWindow.setSystemBarsTranslucency(navigationBarTranslucent)
+
+      if (!navigationBarTranslucent) {
+        dialogWindow.setStatusBarTranslucency(statusBarTranslucent)
+      }
 
       if (transparent) {
         dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -346,6 +381,10 @@ public class ReactModalHostView(context: ThemedReactContext) :
     }
   }
 
+  /**
+   * Updates the system appearance of the dialog to match the activity that it is being displayed
+   * on.
+   */
   private fun updateSystemAppearance() {
     val currentActivity = getCurrentActivity() ?: return
     val dialog = checkNotNull(dialog) { "dialog must exist when we call updateProperties" }
@@ -354,17 +393,50 @@ public class ReactModalHostView(context: ThemedReactContext) :
     val activityWindow = currentActivity.window
     // Modeled after the version check in StatusBarModule.setStyle
     if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) {
-      val insetsController: WindowInsetsController = checkNotNull(activityWindow.insetsController)
-      val activityAppearance: Int = insetsController.systemBarsAppearance
+      val activityWindowInsetsController =
+          WindowInsetsControllerCompat(activityWindow, activityWindow.decorView)
+      val dialogWindowInsetsController =
+          WindowInsetsControllerCompat(dialogWindow, dialogWindow.decorView)
 
-      val activityLightStatusBars =
-          activityAppearance and WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+      dialogWindowInsetsController.isAppearanceLightStatusBars =
+          activityWindowInsetsController.isAppearanceLightStatusBars
 
-      dialogWindow.insetsController?.setSystemBarsAppearance(
-          activityLightStatusBars, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+      val activityRootWindowInsets =
+          WindowInsetsCompat.toWindowInsetsCompat(activityWindow.decorView.rootWindowInsets)
+
+      syncSystemBarsVisibility(activityRootWindowInsets, dialogWindowInsetsController)
     } else {
       dialogWindow.decorView.systemUiVisibility = activityWindow.decorView.systemUiVisibility
     }
+  }
+
+  /**
+   * Syncs the visibility of the system bars based on their visibility in the root window insets.
+   * This ensures consistency between the system bars visibility in the activity and the dialog.
+   */
+  private fun syncSystemBarsVisibility(
+      activityRootWindowInsets: WindowInsetsCompat,
+      dialogWindowInsetsController: WindowInsetsControllerCompat?,
+      types: List<Int> =
+          listOf(WindowInsetsCompat.Type.statusBars(), WindowInsetsCompat.Type.navigationBars()),
+  ) {
+    types.forEach { type ->
+      val isVisible = activityRootWindowInsets.isVisible(type)
+      if (isVisible) {
+        dialogWindowInsetsController?.show(type)
+      } else {
+        dialogWindowInsetsController?.hide(type)
+      }
+    }
+  }
+
+  /**
+   * Sets the testID on the DialogRootViewGroup. Since the accessibility events are not triggered on
+   * the on the ReactModalHostView, the testID is forwarded to the DialogRootViewGroup to set the
+   * resource-id.
+   */
+  public fun setDialogRootViewGroupTestId(testId: String?) {
+    dialogRootViewGroup.setTag(R.id.react_test_id, testId)
   }
 
   // This listener is called when the user presses KeyEvent.KEYCODE_BACK
@@ -405,6 +477,15 @@ public class ReactModalHostView(context: ThemedReactContext) :
     init {
       if (ReactFeatureFlags.dispatchPointerEvents) {
         jSPointerDispatcher = JSPointerDispatcher(this)
+      }
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+      super.onInitializeAccessibilityNodeInfo(info)
+
+      val testId = getTag(R.id.react_test_id) as String?
+      if (testId != null) {
+        info.viewIdResourceName = testId
       }
     }
 
@@ -476,7 +557,7 @@ public class ReactModalHostView(context: ThemedReactContext) :
       return super.onHoverEvent(event)
     }
 
-    override fun onChildStartedNativeGesture(childView: View, ev: MotionEvent) {
+    override fun onChildStartedNativeGesture(childView: View?, ev: MotionEvent) {
       eventDispatcher?.let { eventDispatcher ->
         jSTouchDispatcher.onChildStartedNativeGesture(ev, eventDispatcher)
         jSPointerDispatcher?.onChildStartedNativeGesture(childView, ev, eventDispatcher)

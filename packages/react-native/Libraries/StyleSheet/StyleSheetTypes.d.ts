@@ -372,7 +372,7 @@ export type GradientValue = {
   // Angle or direction enums
   direction?: string | undefined;
   colorStops: ReadonlyArray<{
-    color: ColorValue;
+    color: ColorValue | null;
     positions?: ReadonlyArray<string[]> | undefined;
   }>;
 };
@@ -434,6 +434,12 @@ export interface ViewStyle extends FlexStyle, ShadowStyleIOS, TransformsStyle {
   cursor?: CursorValue | undefined;
   boxShadow?: ReadonlyArray<BoxShadowValue> | string | undefined;
   filter?: ReadonlyArray<FilterFunction> | string | undefined;
+
+  mixBlendMode?: BlendMode | undefined;
+  experimental_backgroundImage?:
+    | ReadonlyArray<GradientValue>
+    | string
+    | undefined;
 }
 
 export type FontVariant =
@@ -562,6 +568,6 @@ export interface ImageStyle extends FlexStyle, ShadowStyleIOS, TransformsStyle {
   overlayColor?: ColorValue | undefined;
   tintColor?: ColorValue | undefined;
   opacity?: AnimatableNumericValue | undefined;
-  objectFit?: 'cover' | 'contain' | 'fill' | 'scale-down' | undefined;
+  objectFit?: 'cover' | 'contain' | 'fill' | 'scale-down' | 'none' | undefined;
   cursor?: CursorValue | undefined;
 }

@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<0909e8a8f83deb9799b58befef766e85>>
+ * @generated SignedSource<<b927f7ca41eb2656f0d1d7b7b4d5356f>>
  */
 
 /**
@@ -31,27 +31,11 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
-  bool allowRecursiveCommitsWithSynchronousMountOnAndroid() override {
-    return false;
-  }
-
-  bool completeReactInstanceCreationOnBgThreadOnAndroid() override {
-    return false;
-  }
-
-  bool disableEventLoopOnBridgeless() override {
-    return false;
-  }
-
   bool disableMountItemReorderingAndroid() override {
     return false;
   }
 
-  bool enableAlignItemsBaselineOnFabricIOS() override {
-    return true;
-  }
-
-  bool enableAndroidLineHeightCentering() override {
+  bool enableAccumulatedUpdatesInRawPropsAndroid() override {
     return false;
   }
 
@@ -60,10 +44,6 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
   }
 
   bool enableCppPropsIteratorSetter() override {
-    return false;
-  }
-
-  bool enableDeletionOfUnmountedViews() override {
     return false;
   }
 
@@ -83,7 +63,7 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
-  bool enableFabricRendererExclusively() override {
+  bool enableFixForViewCommandRace() override {
     return false;
   }
 
@@ -92,6 +72,14 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
   }
 
   bool enableIOSViewClipToPaddingBox() override {
+    return false;
+  }
+
+  bool enableImagePrefetchingAndroid() override {
+    return false;
+  }
+
+  bool enableJSRuntimeGCOnMemoryPressureOnIOS() override {
     return false;
   }
 
@@ -131,12 +119,28 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
+  bool enableViewCulling() override {
+    return false;
+  }
+
   bool enableViewRecycling() override {
     return false;
   }
 
+  bool enableViewRecyclingForText() override {
+    return true;
+  }
+
+  bool enableViewRecyclingForView() override {
+    return true;
+  }
+
   bool excludeYogaFromRawProps() override {
     return false;
+  }
+
+  bool fixDifferentiatorEmittingUpdatesWithWrongParentTag() override {
+    return true;
   }
 
   bool fixMappingOfEventPrioritiesBetweenFabricAndReact() override {
@@ -147,19 +151,11 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
-  bool forceBatchingMountItemsOnAndroid() override {
-    return false;
-  }
-
-  bool fuseboxEnabledDebug() override {
-    return true;
-  }
-
   bool fuseboxEnabledRelease() override {
     return false;
   }
 
-  bool initEagerTurboModulesOnNativeModulesQueueAndroid() override {
+  bool fuseboxNetworkInspectionEnabled() override {
     return false;
   }
 
@@ -167,23 +163,19 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
-  bool loadVectorDrawablesOnImages() override {
-    return false;
-  }
-
-  bool setAndroidLayoutDirection() override {
-    return true;
-  }
-
   bool traceTurboModulePromiseRejectionsOnAndroid() override {
     return false;
   }
 
-  bool useFabricInterop() override {
+  bool useAlwaysAvailableJSErrorHandling() override {
     return false;
   }
 
-  bool useImmediateExecutorInAndroidBridgeless() override {
+  bool useEditTextStockAndroidFocusBehavior() override {
+    return true;
+  }
+
+  bool useFabricInterop() override {
     return false;
   }
 
@@ -191,15 +183,11 @@ class ReactNativeFeatureFlagsDefaults : public ReactNativeFeatureFlagsProvider {
     return false;
   }
 
-  bool useOptimisedViewPreallocationOnAndroid() override {
-    return false;
-  }
-
   bool useOptimizedEventBatchingOnAndroid() override {
     return false;
   }
 
-  bool useRuntimeShadowNodeReferenceUpdate() override {
+  bool useRawPropsJsiValue() override {
     return false;
   }
 

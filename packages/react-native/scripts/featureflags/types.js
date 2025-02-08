@@ -15,21 +15,40 @@ export type FeatureFlagDefinitions = $ReadOnly<{
   jsOnly: JsOnlyFeatureFlagList,
 }>;
 
+/**
+ * OSSReleaseStageValue is used to determine the value of a feature flag in different release stages:
+ * - none: the value of the feature flag will be `defaultValue` on all releases.
+ * - experimental: the value of the feature flag will be `expectedReleaseValue` on experimental releases and `defaultValue` on canaray and stable releases.
+ * - canary: the value of the feature flag will be `expectedReleaseValue` on experimental and canary releases and `defaultValue` on stable releases.
+ * - stable: the value of the feature flag will be `expectedReleaseValue` on all releases.
+ */
+export type OSSReleaseStageValue =
+  | 'none'
+  | 'experimental'
+  | 'canary'
+  | 'stable';
+
+export type CommonFeatureFlagConfig = $ReadOnly<{
+  defaultValue: FeatureFlagValue,
+  metadata: FeatureFlagMetadata,
+  ossReleaseStage: OSSReleaseStageValue,
+  // Indicates if this API should only be defined in JavaScript, only to
+  // preserve backwards compatibility with existing native code temporarily.
+  skipNativeAPI?: true,
+}>;
+
 export type CommonFeatureFlagList = $ReadOnly<{
-  [flagName: string]: $ReadOnly<{
-    defaultValue: FeatureFlagValue,
-    metadata: FeatureFlagMetadata,
-    // Indicates if this API should only be defined in JavaScript, only to
-    // preserve backwards compatibility with existing native code temporarily.
-    skipNativeAPI?: true,
-  }>,
+  [flagName: string]: CommonFeatureFlagConfig,
+}>;
+
+export type JsOnlyFeatureFlagConfig = $ReadOnly<{
+  defaultValue: FeatureFlagValue,
+  metadata: FeatureFlagMetadata,
+  ossReleaseStage: OSSReleaseStageValue,
 }>;
 
 export type JsOnlyFeatureFlagList = $ReadOnly<{
-  [flagName: string]: $ReadOnly<{
-    defaultValue: FeatureFlagValue,
-    metadata: FeatureFlagMetadata,
-  }>,
+  [flagName: string]: JsOnlyFeatureFlagConfig,
 }>;
 
 export type FeatureFlagMetadata =
@@ -41,10 +60,12 @@ export type FeatureFlagMetadata =
        */
       dateAdded: string,
       description: string,
+      expectedReleaseValue: boolean,
     }>
   | $ReadOnly<{
       purpose: 'operational' | 'release',
       description: string,
+      expectedReleaseValue: boolean,
     }>;
 
 export type GeneratorConfig = $ReadOnly<{
