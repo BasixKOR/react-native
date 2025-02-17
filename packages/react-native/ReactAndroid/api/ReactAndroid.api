@@ -1982,9 +1982,14 @@ public class com/facebook/react/defaults/DefaultReactActivityDelegate : com/face
 
 public final class com/facebook/react/defaults/DefaultReactHost {
 	public static final field INSTANCE Lcom/facebook/react/defaults/DefaultReactHost;
-	public static final fun getDefaultReactHost (Landroid/content/Context;Lcom/facebook/react/ReactNativeHost;)Lcom/facebook/react/ReactHost;
+	public static final fun getDefaultReactHost (Landroid/content/Context;Lcom/facebook/react/ReactNativeHost;Lcom/facebook/react/runtime/JSRuntimeFactory;)Lcom/facebook/react/ReactHost;
+	public static final fun getDefaultReactHost (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/facebook/react/runtime/JSRuntimeFactory;ZLjava/util/List;)Lcom/facebook/react/ReactHost;
+	public static final fun getDefaultReactHost (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/facebook/react/runtime/JSRuntimeFactory;ZLjava/util/List;Lkotlin/jvm/functions/Function1;Lcom/facebook/react/runtime/BindingsInstaller;)Lcom/facebook/react/ReactHost;
 	public static final fun getDefaultReactHost (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/util/List;)Lcom/facebook/react/ReactHost;
 	public static final fun getDefaultReactHost (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/util/List;Lkotlin/jvm/functions/Function1;Lcom/facebook/react/runtime/BindingsInstaller;)Lcom/facebook/react/ReactHost;
+	public static synthetic fun getDefaultReactHost$default (Landroid/content/Context;Lcom/facebook/react/ReactNativeHost;Lcom/facebook/react/runtime/JSRuntimeFactory;ILjava/lang/Object;)Lcom/facebook/react/ReactHost;
+	public static synthetic fun getDefaultReactHost$default (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/facebook/react/runtime/JSRuntimeFactory;ZLjava/util/List;ILjava/lang/Object;)Lcom/facebook/react/ReactHost;
+	public static synthetic fun getDefaultReactHost$default (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/facebook/react/runtime/JSRuntimeFactory;ZLjava/util/List;Lkotlin/jvm/functions/Function1;Lcom/facebook/react/runtime/BindingsInstaller;ILjava/lang/Object;)Lcom/facebook/react/ReactHost;
 	public static synthetic fun getDefaultReactHost$default (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/util/List;ILjava/lang/Object;)Lcom/facebook/react/ReactHost;
 	public static synthetic fun getDefaultReactHost$default (Landroid/content/Context;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/util/List;Lkotlin/jvm/functions/Function1;Lcom/facebook/react/runtime/BindingsInstaller;ILjava/lang/Object;)Lcom/facebook/react/ReactHost;
 }
@@ -3359,17 +3364,6 @@ public final class com/facebook/react/modules/network/ReactCookieJarContainer : 
 	public fun setCookieJar (Lokhttp3/CookieJar;)V
 }
 
-public class com/facebook/react/modules/network/TLSSocketFactory : javax/net/ssl/SSLSocketFactory {
-	public fun <init> ()V
-	public fun createSocket (Ljava/lang/String;I)Ljava/net/Socket;
-	public fun createSocket (Ljava/lang/String;ILjava/net/InetAddress;I)Ljava/net/Socket;
-	public fun createSocket (Ljava/net/InetAddress;I)Ljava/net/Socket;
-	public fun createSocket (Ljava/net/InetAddress;ILjava/net/InetAddress;I)Ljava/net/Socket;
-	public fun createSocket (Ljava/net/Socket;Ljava/lang/String;IZ)Ljava/net/Socket;
-	public fun getDefaultCipherSuites ()[Ljava/lang/String;
-	public fun getSupportedCipherSuites ()[Ljava/lang/String;
-}
-
 public final class com/facebook/react/modules/permissions/PermissionsModule : com/facebook/fbreact/specs/NativePermissionsAndroidSpec, com/facebook/react/modules/core/PermissionListener {
 	public static final field Companion Lcom/facebook/react/modules/permissions/PermissionsModule$Companion;
 	public static final field NAME Ljava/lang/String;
@@ -4065,15 +4059,6 @@ public final class com/facebook/react/uimanager/MeasureSpecAssertions {
 	public static final fun assertExplicitMeasureSpec (II)V
 }
 
-public final class com/facebook/react/uimanager/NativeKind : java/lang/Enum {
-	public static final field LEAF Lcom/facebook/react/uimanager/NativeKind;
-	public static final field NONE Lcom/facebook/react/uimanager/NativeKind;
-	public static final field PARENT Lcom/facebook/react/uimanager/NativeKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/facebook/react/uimanager/NativeKind;
-	public static fun values ()[Lcom/facebook/react/uimanager/NativeKind;
-}
-
 public class com/facebook/react/uimanager/NativeViewHierarchyManager {
 	public fun <init> (Lcom/facebook/react/uimanager/ViewManagerRegistry;)V
 	public fun <init> (Lcom/facebook/react/uimanager/ViewManagerRegistry;Lcom/facebook/react/uimanager/RootViewManager;)V
@@ -4349,11 +4334,6 @@ public final class com/facebook/react/uimanager/ReactInvalidPropertyException : 
 
 public abstract interface class com/facebook/react/uimanager/ReactOverflowView {
 	public abstract fun getOverflow ()Ljava/lang/String;
-}
-
-public abstract interface class com/facebook/react/uimanager/ReactOverflowViewWithInset : com/facebook/react/uimanager/ReactOverflowView {
-	public abstract fun getOverflowInset ()Landroid/graphics/Rect;
-	public abstract fun setOverflowInset (IIII)V
 }
 
 public abstract interface class com/facebook/react/uimanager/ReactPointerEventsView {

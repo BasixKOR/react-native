@@ -40,7 +40,7 @@ const WS_DEBUGGER_URL = '/inspector/debug';
 const PAGES_LIST_JSON_URL = '/json';
 const PAGES_LIST_JSON_URL_2 = '/json/list';
 const PAGES_LIST_JSON_VERSION_URL = '/json/version';
-const MAX_PONG_LATENCY_MS = 60000;
+const DEBUGGER_TIMEOUT_MS = 60000;
 const DEBUGGER_HEARTBEAT_INTERVAL_MS = 10000;
 
 const INTERNAL_ERROR_CODE = 1011;
@@ -267,7 +267,11 @@ export default class InspectorProxy implements InspectorProxyQueries {
         );
 
         debug(
-          `Got new connection: name=${deviceName}, app=${appName}, device=${deviceId}, via=${deviceRelativeBaseUrl.origin}`,
+          'Got new connection: name=%s, app=%s, device=%s, via=%s',
+          deviceName,
+          appName,
+          deviceId,
+          deviceRelativeBaseUrl.origin,
         );
 
         socket.on('close', (code: number, reason: string) => {
@@ -328,7 +332,7 @@ export default class InspectorProxy implements InspectorProxyQueries {
           throw new Error('Unknown device with ID ' + deviceId);
         }
 
-        this.#logger?.info('Connection to DevTools established.');
+        this.#logger?.info('Connection established to DevTools.');
 
         this.#startHeartbeat(socket, DEBUGGER_HEARTBEAT_INTERVAL_MS, appId);
 
@@ -359,9 +363,8 @@ export default class InspectorProxy implements InspectorProxyQueries {
   //
   // https://datatracker.ietf.org/doc/html/rfc6455#section-5.5.2
   #startHeartbeat(socket: WS, intervalMs: number, appId: string) {
-    let shouldSetTerminateTimeout = false;
-    let terminateTimeout = null;
     let latestPingMs = Date.now();
+    let terminateTimeout: ?Timeout;
 
     const pingTimeout: Timeout = setTimeout(() => {
       if (socket.readyState !== WS.OPEN) {
@@ -370,67 +373,63 @@ export default class InspectorProxy implements InspectorProxyQueries {
         return;
       }
 
-      shouldSetTerminateTimeout = true;
-      latestPingMs = Date.now();
-      socket.ping(() => {
-        if (!shouldSetTerminateTimeout) {
-          // Sometimes, this `sent` callback fires later than
-          // the actual pong reply.
-          //
-          // If any message came in between ping `sending` and `sent`,
-          // then the connection exists; and we don't need to do anything.
-          return;
-        }
-
-        shouldSetTerminateTimeout = false;
+      if (!terminateTimeout) {
         terminateTimeout = setTimeout(() => {
           if (socket.readyState !== WS.OPEN) {
+            // May be connecting or closing, try again later.
+            terminateTimeout?.refresh();
             return;
           }
+
           // We don't use close() here because that initiates a closing handshake,
           // which will not complete if the other end has gone away - 'close'
           // would not be emitted.
-          //
           // terminate() emits 'close' immediately, allowing us to handle it and
           // inform any clients.
           socket.terminate();
+
           this.#logger?.error(
-            `Connection terminated with DevTools after not responding for ${MAX_PONG_LATENCY_MS / 1000} seconds.`,
+            'Connection terminated with DevTools after not responding for %s seconds.',
+            String(DEBUGGER_TIMEOUT_MS / 1000),
           );
+
           this.#eventReporter?.logEvent({
             type: 'debugger_timeout',
-            duration: MAX_PONG_LATENCY_MS,
+            duration: DEBUGGER_TIMEOUT_MS,
             appId,
           });
-        }, MAX_PONG_LATENCY_MS).unref();
-      });
+        }, DEBUGGER_TIMEOUT_MS).unref();
+      }
+
+      latestPingMs = Date.now();
+      socket.ping();
     }, intervalMs).unref();
 
-    const onAnyMessageFromDebugger = () => {
-      shouldSetTerminateTimeout = false;
-      terminateTimeout && clearTimeout(terminateTimeout);
-      pingTimeout.refresh();
-    };
-
     socket.on('pong', () => {
-      onAnyMessageFromDebugger();
+      const roundtripDuration = Date.now() - latestPingMs;
+
+      debug('debugger ping-pong for %s took %dms.', appId, roundtripDuration);
+
       this.#eventReporter?.logEvent({
         type: 'debugger_heartbeat',
-        duration: Date.now() - latestPingMs,
+        duration: roundtripDuration,
         appId,
       });
+
+      terminateTimeout?.refresh();
+      pingTimeout.refresh();
     });
+
     socket.on('message', () => {
-      onAnyMessageFromDebugger();
+      terminateTimeout?.refresh();
     });
 
     socket.on('close', (code: number, reason: string) => {
       this.#logger?.info(
-        "Connection to DevTools closed with code '%s' and reason '%s'.",
+        "Connection closed to DevTools with code '%s' and reason '%s'.",
         String(code),
         reason,
       );
-      shouldSetTerminateTimeout = false;
       terminateTimeout && clearTimeout(terminateTimeout);
       clearTimeout(pingTimeout);
     });
