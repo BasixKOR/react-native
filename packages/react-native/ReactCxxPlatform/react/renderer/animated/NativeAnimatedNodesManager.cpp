@@ -65,7 +65,11 @@ NativeAnimatedNodesManager::NativeAnimatedNodesManager(
       startOnRenderCallback_(std::move(startOnRenderCallback)),
       stopOnRenderCallback_(std::move(stopOnRenderCallback)) {}
 
-std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) {
+NativeAnimatedNodesManager::~NativeAnimatedNodesManager() noexcept {
+  stopRenderCallbackIfNeeded();
+}
+
+std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) noexcept {
   auto node = getAnimatedNode<ValueAnimatedNode>(tag);
   if (node) {
     return node->value();
@@ -80,7 +84,7 @@ std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) {
 
 std::unique_ptr<AnimatedNode> NativeAnimatedNodesManager::animatedNode(
     Tag tag,
-    const folly::dynamic& config) {
+    const folly::dynamic& config) noexcept {
   auto typeName = config["type"].asString();
 
   auto type = AnimatedNode::getNodeTypeByName(typeName);
@@ -141,7 +145,7 @@ std::unique_ptr<AnimatedNode> NativeAnimatedNodesManager::animatedNode(
 
 void NativeAnimatedNodesManager::createAnimatedNode(
     Tag tag,
-    const folly::dynamic& config) {
+    const folly::dynamic& config) noexcept {
   auto node = animatedNode(tag, config);
   if (node) {
     std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
@@ -152,7 +156,7 @@ void NativeAnimatedNodesManager::createAnimatedNode(
 
 void NativeAnimatedNodesManager::connectAnimatedNodes(
     Tag parentTag,
-    Tag childTag) {
+    Tag childTag) noexcept {
   react_native_assert(parentTag);
   react_native_assert(childTag);
 
@@ -171,7 +175,7 @@ void NativeAnimatedNodesManager::connectAnimatedNodes(
 
 void NativeAnimatedNodesManager::connectAnimatedNodeToView(
     Tag propsNodeTag,
-    Tag viewTag) {
+    Tag viewTag) noexcept {
   react_native_assert(propsNodeTag);
   react_native_assert(viewTag);
 
@@ -191,7 +195,7 @@ void NativeAnimatedNodesManager::connectAnimatedNodeToView(
 
 void NativeAnimatedNodesManager::disconnectAnimatedNodeFromView(
     Tag propsNodeTag,
-    Tag viewTag) {
+    Tag viewTag) noexcept {
   react_native_assert(propsNodeTag);
   react_native_assert(viewTag);
 
@@ -211,7 +215,7 @@ void NativeAnimatedNodesManager::disconnectAnimatedNodeFromView(
 
 void NativeAnimatedNodesManager::disconnectAnimatedNodes(
     Tag parentTag,
-    Tag childTag) {
+    Tag childTag) noexcept {
   react_native_assert(parentTag);
   react_native_assert(childTag);
 
@@ -227,13 +231,13 @@ void NativeAnimatedNodesManager::disconnectAnimatedNodes(
   }
 }
 
-void NativeAnimatedNodesManager::restoreDefaultValues(Tag tag) {
+void NativeAnimatedNodesManager::restoreDefaultValues(Tag tag) noexcept {
   if (auto propsNode = getAnimatedNode<PropsAnimatedNode>(tag)) {
     propsNode->restoreDefaultValues();
   }
 }
 
-void NativeAnimatedNodesManager::dropAnimatedNode(Tag tag) {
+void NativeAnimatedNodesManager::dropAnimatedNode(Tag tag) noexcept {
   std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
   animatedNodes_.erase(tag);
 }
@@ -265,21 +269,23 @@ void NativeAnimatedNodesManager::stopAnimationsForNode(Tag nodeTag) {
 
 void NativeAnimatedNodesManager::setAnimatedNodeOffset(
     Tag /*tag*/,
-    double /*offset*/) {
+    double /*offset*/) noexcept {
   LOG(WARNING) << "SetAnimatedNodeOffset is unimplemented";
 }
 
-void NativeAnimatedNodesManager::flattenAnimatedNodeOffset(Tag /*tag*/) {
+void NativeAnimatedNodesManager::flattenAnimatedNodeOffset(
+    Tag /*tag*/) noexcept {
   LOG(WARNING) << "FlattenAnimatedNodeOffset is unimplemented";
 }
 
-void NativeAnimatedNodesManager::extractAnimatedNodeOffset(Tag /*tag*/) {
+void NativeAnimatedNodesManager::extractAnimatedNodeOffset(
+    Tag /*tag*/) noexcept {
   LOG(WARNING) << "ExtractAnimatedNodeOffset is unimplemented";
 }
 
 void NativeAnimatedNodesManager::updateAnimatedNodeConfig(
     Tag /*tag*/,
-    const folly::dynamic& /*config*/) {
+    const folly::dynamic& /*config*/) noexcept {
   LOG(WARNING) << "UpdateAnimatedNodeConfig is unimplemented";
 }
 
@@ -289,7 +295,7 @@ void NativeAnimatedNodesManager::startAnimatingNode(
     int animationId,
     Tag animatedNodeTag,
     const folly::dynamic& config,
-    const std::optional<AnimationEndCallback>& endCallback) {
+    const std::optional<AnimationEndCallback>& endCallback) noexcept {
   if (auto iter = activeAnimations_.find(animationId);
       iter != activeAnimations_.end()) {
     // reset animation config
@@ -326,7 +332,7 @@ void NativeAnimatedNodesManager::startAnimatingNode(
 
 void NativeAnimatedNodesManager::stopAnimation(
     int animationId,
-    bool /*isTrackingAnimation*/) {
+    bool /*isTrackingAnimation*/) noexcept {
   if (auto iter = activeAnimations_.find(animationId);
       iter != activeAnimations_.end()) {
     iter->second->stopAnimation();
@@ -337,7 +343,7 @@ void NativeAnimatedNodesManager::stopAnimation(
 void NativeAnimatedNodesManager::addAnimatedEventToView(
     Tag viewTag,
     const std::string& eventName,
-    const folly::dynamic& eventMapping) {
+    const folly::dynamic& eventMapping) noexcept {
   const auto animatedValueTag = (eventMapping.count("animatedValueTag") != 0u)
       ? static_cast<Tag>(eventMapping["animatedValueTag"].asInt())
       : 0;
@@ -366,7 +372,7 @@ void NativeAnimatedNodesManager::addAnimatedEventToView(
 void NativeAnimatedNodesManager::removeAnimatedEventFromView(
     Tag viewTag,
     const std::string& eventName,
-    Tag animatedValueTag) {
+    Tag animatedValueTag) noexcept {
   const auto key = EventAnimationDriverKey{
       viewTag, EventEmitter::normalizeEventType(eventName)};
   auto driversIter = eventDrivers_.find(key);
@@ -383,7 +389,7 @@ static thread_local bool isOnRenderThread_{false};
 void NativeAnimatedNodesManager::handleAnimatedEvent(
     Tag viewTag,
     const std::string& eventName,
-    const EventPayload& eventPayload) {
+    const EventPayload& eventPayload) noexcept {
   // We currently reject events that are not on the same thread as `onRender`
   // callbacks, as the assumption is these events can synchronously update
   // UI components or otherwise Animated nodes with single-threaded assumptions.
@@ -432,7 +438,7 @@ void NativeAnimatedNodesManager::handleAnimatedEvent(
 }
 
 std::shared_ptr<EventEmitterListener>
-NativeAnimatedNodesManager::ensureEventEmitterListener() {
+NativeAnimatedNodesManager::ensureEventEmitterListener() noexcept {
   if (!eventEmitterListener_) {
     eventEmitterListener_ = std::make_shared<EventEmitterListener>(
         [weakSelf = weak_from_this()](
@@ -466,19 +472,19 @@ void NativeAnimatedNodesManager::startRenderCallbackIfNeeded() {
   }
 }
 
-void NativeAnimatedNodesManager::stopRenderCallbackIfNeeded() {
+void NativeAnimatedNodesManager::stopRenderCallbackIfNeeded() noexcept {
   if (stopOnRenderCallback_) {
     stopOnRenderCallback_();
   }
 }
 
-bool NativeAnimatedNodesManager::isAnimationUpdateNeeded() const {
+bool NativeAnimatedNodesManager::isAnimationUpdateNeeded() const noexcept {
   return !activeAnimations_.empty() || !updatedNodeTags_.empty() ||
       isGestureAnimationInProgress_;
 }
 
 void NativeAnimatedNodesManager::updateNodes(
-    const std::set<int>& finishedAnimationValueNodes) {
+    const std::set<int>& finishedAnimationValueNodes) noexcept {
   auto nodesQueue = std::deque<NodesQueueItem>{};
 
   const auto is_node_connected_to_finished_animation =
@@ -678,7 +684,7 @@ bool NativeAnimatedNodesManager::onAnimationFrame(uint64_t timestamp) {
 }
 
 std::optional<folly::dynamic> NativeAnimatedNodesManager::managedProps(
-    Tag tag) {
+    Tag tag) noexcept {
   std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
   const auto iter = connectedAnimatedNodes_.find(tag);
   if (iter != connectedAnimatedNodes_.end()) {
@@ -690,14 +696,14 @@ std::optional<folly::dynamic> NativeAnimatedNodesManager::managedProps(
   return {};
 }
 
-bool NativeAnimatedNodesManager::isOnRenderThread() const {
+bool NativeAnimatedNodesManager::isOnRenderThread() const noexcept {
   return isOnRenderThread_;
 }
 
 // listeners
 void NativeAnimatedNodesManager::startListeningToAnimatedNodeValue(
     Tag tag,
-    ValueListenerCallback&& callback) {
+    ValueListenerCallback&& callback) noexcept {
   if (auto iter = animatedNodes_.find(tag); iter != animatedNodes_.end() &&
       iter->second->type() == AnimatedNodeType::Value) {
     static_pointer_cast<ValueAnimatedNode>(iter->second)
@@ -708,7 +714,8 @@ void NativeAnimatedNodesManager::startListeningToAnimatedNodeValue(
   }
 }
 
-void NativeAnimatedNodesManager::stopListeningToAnimatedNodeValue(Tag tag) {
+void NativeAnimatedNodesManager::stopListeningToAnimatedNodeValue(
+    Tag tag) noexcept {
   if (auto iter = animatedNodes_.find(tag); iter != animatedNodes_.end() &&
       iter->second->type() == AnimatedNodeType::Value) {
     static_pointer_cast<ValueAnimatedNode>(iter->second)
@@ -723,7 +730,7 @@ void NativeAnimatedNodesManager::schedulePropsCommit(
     Tag viewTag,
     const folly::dynamic& props,
     bool layoutStyleUpdated,
-    bool forceFabricCommit) {
+    bool forceFabricCommit) noexcept {
   // When fabricCommitCallback_ & directManipulationCallback_ are both
   // available, we commit layout props via Fabric and the other using direct
   // manipulation; if only one is available, we commit all props using that
