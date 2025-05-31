@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<9f34463a7cddcfd1a76631041297c4b7>>
+ * @generated SignedSource<<39a09787285319461afa9de7543d4365>>
  */
 
 /**
@@ -48,6 +48,10 @@ bool ReactNativeFeatureFlags::disableMainQueueSyncDispatchIOS() {
 
 bool ReactNativeFeatureFlags::disableMountItemReorderingAndroid() {
   return getAccessor().disableMountItemReorderingAndroid();
+}
+
+bool ReactNativeFeatureFlags::disableTextLayoutManagerCacheAndroid() {
+  return getAccessor().disableTextLayoutManagerCacheAndroid();
 }
 
 bool ReactNativeFeatureFlags::enableAccessibilityOrder() {
@@ -118,8 +122,16 @@ bool ReactNativeFeatureFlags::enableLayoutAnimationsOnIOS() {
   return getAccessor().enableLayoutAnimationsOnIOS();
 }
 
+bool ReactNativeFeatureFlags::enableMainQueueCoordinatorOnIOS() {
+  return getAccessor().enableMainQueueCoordinatorOnIOS();
+}
+
 bool ReactNativeFeatureFlags::enableMainQueueModulesOnIOS() {
   return getAccessor().enableMainQueueModulesOnIOS();
+}
+
+bool ReactNativeFeatureFlags::enableModuleArgumentNSNullConversionIOS() {
+  return getAccessor().enableModuleArgumentNSNullConversionIOS();
 }
 
 bool ReactNativeFeatureFlags::enableNativeCSSParsing() {

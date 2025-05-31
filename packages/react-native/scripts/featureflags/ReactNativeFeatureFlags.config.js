@@ -112,6 +112,17 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
+    disableTextLayoutManagerCacheAndroid: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2025-05-28',
+        description:
+          'Turns off the global measurement cache used by TextLayoutManager on Android.',
+        expectedReleaseValue: false,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
     enableAccessibilityOrder: {
       defaultValue: false,
       metadata: {
@@ -289,11 +300,32 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
+    enableMainQueueCoordinatorOnIOS: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2025-05-17',
+        description:
+          'Make RCTUnsafeExecuteOnMainQueueSync less likely to deadlock, when used in conjuction with sync rendering/events.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
     enableMainQueueModulesOnIOS: {
       defaultValue: false,
       metadata: {
         description:
           'Makes modules requiring main queue setup initialize on the main thread, during React Native init.',
+        expectedReleaseValue: true,
+        purpose: 'release',
+      },
+      ossReleaseStage: 'none',
+    },
+    enableModuleArgumentNSNullConversionIOS: {
+      defaultValue: false,
+      metadata: {
+        description:
+          'Enable NSNull conversion when handling module arguments on iOS',
         expectedReleaseValue: true,
         purpose: 'release',
       },
@@ -603,13 +635,12 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     avoidStateUpdateInAnimatedPropsMemo: {
-      defaultValue: false,
+      defaultValue: true,
       metadata: {
-        dateAdded: '2025-02-05',
         description:
           'Changes `useAnimatedPropsMemo` to avoid state updates to invalidate the cached `AnimatedProps`.',
         expectedReleaseValue: true,
-        purpose: 'experimentation',
+        purpose: 'release',
       },
       ossReleaseStage: 'none',
     },

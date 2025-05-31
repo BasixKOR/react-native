@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<cb84333e310cfc1a6a77f1b376723e93>>
+ * @generated SignedSource<<cf01214e2de7a6eb948c311b10d272ae>>
  */
 
 /**
@@ -68,6 +68,11 @@ class ReactNativeFeatureFlags {
    * Prevent FabricMountingManager from reordering mountItems, which may lead to invalid state on the UI thread
    */
   RN_EXPORT static bool disableMountItemReorderingAndroid();
+
+  /**
+   * Turns off the global measurement cache used by TextLayoutManager on Android.
+   */
+  RN_EXPORT static bool disableTextLayoutManagerCacheAndroid();
 
   /**
    * When enabled, the accessibilityOrder prop will propagate to native platforms and define the accessibility order.
@@ -155,9 +160,19 @@ class ReactNativeFeatureFlags {
   RN_EXPORT static bool enableLayoutAnimationsOnIOS();
 
   /**
+   * Make RCTUnsafeExecuteOnMainQueueSync less likely to deadlock, when used in conjuction with sync rendering/events.
+   */
+  RN_EXPORT static bool enableMainQueueCoordinatorOnIOS();
+
+  /**
    * Makes modules requiring main queue setup initialize on the main thread, during React Native init.
    */
   RN_EXPORT static bool enableMainQueueModulesOnIOS();
+
+  /**
+   * Enable NSNull conversion when handling module arguments on iOS
+   */
+  RN_EXPORT static bool enableModuleArgumentNSNullConversionIOS();
 
   /**
    * Parse CSS strings using the Fabric CSS parser instead of ViewConfig processing

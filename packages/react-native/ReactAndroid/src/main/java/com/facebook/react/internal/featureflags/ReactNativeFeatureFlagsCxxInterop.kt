@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<918dcdb416bb3e2e3f83cded78e06363>>
+ * @generated SignedSource<<3e0d774f5d727e98bce677e218238eb1>>
  */
 
 /**
@@ -40,6 +40,8 @@ public object ReactNativeFeatureFlagsCxxInterop {
 
   @DoNotStrip @JvmStatic public external fun disableMountItemReorderingAndroid(): Boolean
 
+  @DoNotStrip @JvmStatic public external fun disableTextLayoutManagerCacheAndroid(): Boolean
+
   @DoNotStrip @JvmStatic public external fun enableAccessibilityOrder(): Boolean
 
   @DoNotStrip @JvmStatic public external fun enableAccumulatedUpdatesInRawPropsAndroid(): Boolean
@@ -74,7 +76,11 @@ public object ReactNativeFeatureFlagsCxxInterop {
 
   @DoNotStrip @JvmStatic public external fun enableLayoutAnimationsOnIOS(): Boolean
 
+  @DoNotStrip @JvmStatic public external fun enableMainQueueCoordinatorOnIOS(): Boolean
+
   @DoNotStrip @JvmStatic public external fun enableMainQueueModulesOnIOS(): Boolean
+
+  @DoNotStrip @JvmStatic public external fun enableModuleArgumentNSNullConversionIOS(): Boolean
 
   @DoNotStrip @JvmStatic public external fun enableNativeCSSParsing(): Boolean
 

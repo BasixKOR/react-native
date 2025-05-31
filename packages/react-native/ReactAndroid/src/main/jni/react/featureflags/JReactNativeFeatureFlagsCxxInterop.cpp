@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<422a5922cfe14a1c5f7c0728410dbe8a>>
+ * @generated SignedSource<<bd5d5a0b21816ebd35c06250ba622bb0>>
  */
 
 /**
@@ -72,6 +72,12 @@ class ReactNativeFeatureFlagsJavaProvider
   bool disableMountItemReorderingAndroid() override {
     static const auto method =
         getReactNativeFeatureFlagsProviderJavaClass()->getMethod<jboolean()>("disableMountItemReorderingAndroid");
+    return method(javaProvider_);
+  }
+
+  bool disableTextLayoutManagerCacheAndroid() override {
+    static const auto method =
+        getReactNativeFeatureFlagsProviderJavaClass()->getMethod<jboolean()>("disableTextLayoutManagerCacheAndroid");
     return method(javaProvider_);
   }
 
@@ -177,9 +183,21 @@ class ReactNativeFeatureFlagsJavaProvider
     return method(javaProvider_);
   }
 
+  bool enableMainQueueCoordinatorOnIOS() override {
+    static const auto method =
+        getReactNativeFeatureFlagsProviderJavaClass()->getMethod<jboolean()>("enableMainQueueCoordinatorOnIOS");
+    return method(javaProvider_);
+  }
+
   bool enableMainQueueModulesOnIOS() override {
     static const auto method =
         getReactNativeFeatureFlagsProviderJavaClass()->getMethod<jboolean()>("enableMainQueueModulesOnIOS");
+    return method(javaProvider_);
+  }
+
+  bool enableModuleArgumentNSNullConversionIOS() override {
+    static const auto method =
+        getReactNativeFeatureFlagsProviderJavaClass()->getMethod<jboolean()>("enableModuleArgumentNSNullConversionIOS");
     return method(javaProvider_);
   }
 
@@ -373,6 +391,11 @@ bool JReactNativeFeatureFlagsCxxInterop::disableMountItemReorderingAndroid(
   return ReactNativeFeatureFlags::disableMountItemReorderingAndroid();
 }
 
+bool JReactNativeFeatureFlagsCxxInterop::disableTextLayoutManagerCacheAndroid(
+    facebook::jni::alias_ref<JReactNativeFeatureFlagsCxxInterop> /*unused*/) {
+  return ReactNativeFeatureFlags::disableTextLayoutManagerCacheAndroid();
+}
+
 bool JReactNativeFeatureFlagsCxxInterop::enableAccessibilityOrder(
     facebook::jni::alias_ref<JReactNativeFeatureFlagsCxxInterop> /*unused*/) {
   return ReactNativeFeatureFlags::enableAccessibilityOrder();
@@ -458,9 +481,19 @@ bool JReactNativeFeatureFlagsCxxInterop::enableLayoutAnimationsOnIOS(
   return ReactNativeFeatureFlags::enableLayoutAnimationsOnIOS();
 }
 
+bool JReactNativeFeatureFlagsCxxInterop::enableMainQueueCoordinatorOnIOS(
+    facebook::jni::alias_ref<JReactNativeFeatureFlagsCxxInterop> /*unused*/) {
+  return ReactNativeFeatureFlags::enableMainQueueCoordinatorOnIOS();
+}
+
 bool JReactNativeFeatureFlagsCxxInterop::enableMainQueueModulesOnIOS(
     facebook::jni::alias_ref<JReactNativeFeatureFlagsCxxInterop> /*unused*/) {
   return ReactNativeFeatureFlags::enableMainQueueModulesOnIOS();
+}
+
+bool JReactNativeFeatureFlagsCxxInterop::enableModuleArgumentNSNullConversionIOS(
+    facebook::jni::alias_ref<JReactNativeFeatureFlagsCxxInterop> /*unused*/) {
+  return ReactNativeFeatureFlags::enableModuleArgumentNSNullConversionIOS();
 }
 
 bool JReactNativeFeatureFlagsCxxInterop::enableNativeCSSParsing(
@@ -643,6 +676,9 @@ void JReactNativeFeatureFlagsCxxInterop::registerNatives() {
         "disableMountItemReorderingAndroid",
         JReactNativeFeatureFlagsCxxInterop::disableMountItemReorderingAndroid),
       makeNativeMethod(
+        "disableTextLayoutManagerCacheAndroid",
+        JReactNativeFeatureFlagsCxxInterop::disableTextLayoutManagerCacheAndroid),
+      makeNativeMethod(
         "enableAccessibilityOrder",
         JReactNativeFeatureFlagsCxxInterop::enableAccessibilityOrder),
       makeNativeMethod(
@@ -694,8 +730,14 @@ void JReactNativeFeatureFlagsCxxInterop::registerNatives() {
         "enableLayoutAnimationsOnIOS",
         JReactNativeFeatureFlagsCxxInterop::enableLayoutAnimationsOnIOS),
       makeNativeMethod(
+        "enableMainQueueCoordinatorOnIOS",
+        JReactNativeFeatureFlagsCxxInterop::enableMainQueueCoordinatorOnIOS),
+      makeNativeMethod(
         "enableMainQueueModulesOnIOS",
         JReactNativeFeatureFlagsCxxInterop::enableMainQueueModulesOnIOS),
+      makeNativeMethod(
+        "enableModuleArgumentNSNullConversionIOS",
+        JReactNativeFeatureFlagsCxxInterop::enableModuleArgumentNSNullConversionIOS),
       makeNativeMethod(
         "enableNativeCSSParsing",
         JReactNativeFeatureFlagsCxxInterop::enableNativeCSSParsing),

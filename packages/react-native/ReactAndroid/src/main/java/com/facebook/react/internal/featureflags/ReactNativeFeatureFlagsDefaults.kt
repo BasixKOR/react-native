@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<7151e167c4e45a732a341a2cfcf67b58>>
+ * @generated SignedSource<<45f8f8047e5edb8b5c8fd32350246cf6>>
  */
 
 /**
@@ -34,6 +34,8 @@ public open class ReactNativeFeatureFlagsDefaults : ReactNativeFeatureFlagsProvi
   override fun disableMainQueueSyncDispatchIOS(): Boolean = false
 
   override fun disableMountItemReorderingAndroid(): Boolean = false
+
+  override fun disableTextLayoutManagerCacheAndroid(): Boolean = false
 
   override fun enableAccessibilityOrder(): Boolean = false
 
@@ -69,7 +71,11 @@ public open class ReactNativeFeatureFlagsDefaults : ReactNativeFeatureFlagsProvi
 
   override fun enableLayoutAnimationsOnIOS(): Boolean = true
 
+  override fun enableMainQueueCoordinatorOnIOS(): Boolean = false
+
   override fun enableMainQueueModulesOnIOS(): Boolean = false
+
+  override fun enableModuleArgumentNSNullConversionIOS(): Boolean = false
 
   override fun enableNativeCSSParsing(): Boolean = false
 
