@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<74f011324e9d4647fa757f29b602c6c3>>
+ * @generated SignedSource<<9eaa018054616593369563add66571d1>>
  */
 
 /**
@@ -35,7 +35,7 @@ namespace facebook::react {
 
 NativeReactNativeFeatureFlags::NativeReactNativeFeatureFlags(
     std::shared_ptr<CallInvoker> jsInvoker)
-    : NativeReactNativeFeatureFlagsCxxSpec(std::move(jsInvoker)) {}
+    : NativeReactNativeFeatureFlagsCxxSpecJSI(std::move(jsInvoker)) {}
 
 bool NativeReactNativeFeatureFlags::commonTestFlag(
     jsi::Runtime& /*runtime*/) {
@@ -72,6 +72,11 @@ bool NativeReactNativeFeatureFlags::disableMainQueueSyncDispatchIOS(
 bool NativeReactNativeFeatureFlags::disableMountItemReorderingAndroid(
     jsi::Runtime& /*runtime*/) {
   return ReactNativeFeatureFlags::disableMountItemReorderingAndroid();
+}
+
+bool NativeReactNativeFeatureFlags::disableTextLayoutManagerCacheAndroid(
+    jsi::Runtime& /*runtime*/) {
+  return ReactNativeFeatureFlags::disableTextLayoutManagerCacheAndroid();
 }
 
 bool NativeReactNativeFeatureFlags::enableAccessibilityOrder(
@@ -159,9 +164,19 @@ bool NativeReactNativeFeatureFlags::enableLayoutAnimationsOnIOS(
   return ReactNativeFeatureFlags::enableLayoutAnimationsOnIOS();
 }
 
+bool NativeReactNativeFeatureFlags::enableMainQueueCoordinatorOnIOS(
+    jsi::Runtime& /*runtime*/) {
+  return ReactNativeFeatureFlags::enableMainQueueCoordinatorOnIOS();
+}
+
 bool NativeReactNativeFeatureFlags::enableMainQueueModulesOnIOS(
     jsi::Runtime& /*runtime*/) {
   return ReactNativeFeatureFlags::enableMainQueueModulesOnIOS();
+}
+
+bool NativeReactNativeFeatureFlags::enableModuleArgumentNSNullConversionIOS(
+    jsi::Runtime& /*runtime*/) {
+  return ReactNativeFeatureFlags::enableModuleArgumentNSNullConversionIOS();
 }
 
 bool NativeReactNativeFeatureFlags::enableNativeCSSParsing(
@@ -292,6 +307,11 @@ bool NativeReactNativeFeatureFlags::useTurboModuleInterop(
 bool NativeReactNativeFeatureFlags::useTurboModules(
     jsi::Runtime& /*runtime*/) {
   return ReactNativeFeatureFlags::useTurboModules();
+}
+
+double NativeReactNativeFeatureFlags::virtualViewPrerenderRatio(
+    jsi::Runtime& /*runtime*/) {
+  return ReactNativeFeatureFlags::virtualViewPrerenderRatio();
 }
 
 } // namespace facebook::react

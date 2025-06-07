@@ -19,9 +19,9 @@ namespace facebook::react {
 AnimatedNode::AnimatedNode(
     Tag tag,
     folly::dynamic config,
-    const std::shared_ptr<NativeAnimatedNodesManager>& manager,
+    NativeAnimatedNodesManager& manager,
     AnimatedNodeType type)
-    : tag_(tag), manager_(manager), type_(type), config_(std::move(config)) {}
+    : tag_(tag), manager_(&manager), type_(type), config_(std::move(config)) {}
 
 void AnimatedNode::addChild(const Tag animatedNodeTag) {
   children_.insert(animatedNodeTag);
@@ -35,11 +35,9 @@ void AnimatedNode::removeChild(const Tag tag) {
   }
 }
 
-std::shared_ptr<AnimatedNode> AnimatedNode::getChildNode(Tag tag) {
-  if (const auto manager = manager_.lock()) {
-    if (children_.find(tag) != children_.end()) {
-      return manager->getAnimatedNode<AnimatedNode>(tag);
-    }
+AnimatedNode* AnimatedNode::getChildNode(Tag tag) {
+  if (children_.find(tag) != children_.end()) {
+    return manager_->getAnimatedNode<AnimatedNode>(tag);
   }
 
   return nullptr;
@@ -47,26 +45,37 @@ std::shared_ptr<AnimatedNode> AnimatedNode::getChildNode(Tag tag) {
 
 std::optional<AnimatedNodeType> AnimatedNode::getNodeTypeByName(
     const std::string& nodeTypeName) {
-  static std::unordered_map<std::string, AnimatedNodeType> typeNames = {
-      {"style", AnimatedNodeType::Style},
-      {"value", AnimatedNodeType::Value},
-      {"color", AnimatedNodeType::Color},
-      {"props", AnimatedNodeType::Props},
-      {"interpolation", AnimatedNodeType::Interpolation},
-      {"addition", AnimatedNodeType::Addition},
-      {"subtraction", AnimatedNodeType::Subtraction},
-      {"division", AnimatedNodeType::Division},
-      {"multiplication", AnimatedNodeType::Multiplication},
-      {"modulus", AnimatedNodeType::Modulus},
-      {"diffclamp", AnimatedNodeType::Diffclamp},
-      {"transform", AnimatedNodeType::Transform},
-      {"tracking", AnimatedNodeType::Tracking},
-      {"round", AnimatedNodeType::Round}};
-
-  if (auto iter = typeNames.find(nodeTypeName); iter != typeNames.end()) {
-    return iter->second;
+  if (nodeTypeName == "style") {
+    return AnimatedNodeType::Style;
+  } else if (nodeTypeName == "value") {
+    return AnimatedNodeType::Value;
+  } else if (nodeTypeName == "color") {
+    return AnimatedNodeType::Color;
+  } else if (nodeTypeName == "props") {
+    return AnimatedNodeType::Props;
+  } else if (nodeTypeName == "interpolation") {
+    return AnimatedNodeType::Interpolation;
+  } else if (nodeTypeName == "addition") {
+    return AnimatedNodeType::Addition;
+  } else if (nodeTypeName == "subtraction") {
+    return AnimatedNodeType::Subtraction;
+  } else if (nodeTypeName == "division") {
+    return AnimatedNodeType::Division;
+  } else if (nodeTypeName == "multiplication") {
+    return AnimatedNodeType::Multiplication;
+  } else if (nodeTypeName == "modulus") {
+    return AnimatedNodeType::Modulus;
+  } else if (nodeTypeName == "diffclamp") {
+    return AnimatedNodeType::Diffclamp;
+  } else if (nodeTypeName == "transform") {
+    return AnimatedNodeType::Transform;
+  } else if (nodeTypeName == "tracking") {
+    return AnimatedNodeType::Tracking;
+  } else if (nodeTypeName == "round") {
+    return AnimatedNodeType::Round;
+  } else {
+    return std::nullopt;
   }
-  return std::nullopt;
 }
 
 } // namespace facebook::react

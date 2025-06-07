@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<f0c9d2d7027f9408bb7f784adcccbd51>>
+ * @generated SignedSource<<ac09fd0e72e9fa41a5a13578fcd98d03>>
  */
 
 /**
@@ -97,6 +97,15 @@ class ReactNativeFeatureFlagsDynamicProvider : public ReactNativeFeatureFlagsDef
     }
 
     return ReactNativeFeatureFlagsDefaults::disableMountItemReorderingAndroid();
+  }
+
+  bool disableTextLayoutManagerCacheAndroid() override {
+    auto value = values_["disableTextLayoutManagerCacheAndroid"];
+    if (!value.isNull()) {
+      return value.getBool();
+    }
+
+    return ReactNativeFeatureFlagsDefaults::disableTextLayoutManagerCacheAndroid();
   }
 
   bool enableAccessibilityOrder() override {
@@ -252,6 +261,15 @@ class ReactNativeFeatureFlagsDynamicProvider : public ReactNativeFeatureFlagsDef
     return ReactNativeFeatureFlagsDefaults::enableLayoutAnimationsOnIOS();
   }
 
+  bool enableMainQueueCoordinatorOnIOS() override {
+    auto value = values_["enableMainQueueCoordinatorOnIOS"];
+    if (!value.isNull()) {
+      return value.getBool();
+    }
+
+    return ReactNativeFeatureFlagsDefaults::enableMainQueueCoordinatorOnIOS();
+  }
+
   bool enableMainQueueModulesOnIOS() override {
     auto value = values_["enableMainQueueModulesOnIOS"];
     if (!value.isNull()) {
@@ -259,6 +277,15 @@ class ReactNativeFeatureFlagsDynamicProvider : public ReactNativeFeatureFlagsDef
     }
 
     return ReactNativeFeatureFlagsDefaults::enableMainQueueModulesOnIOS();
+  }
+
+  bool enableModuleArgumentNSNullConversionIOS() override {
+    auto value = values_["enableModuleArgumentNSNullConversionIOS"];
+    if (!value.isNull()) {
+      return value.getBool();
+    }
+
+    return ReactNativeFeatureFlagsDefaults::enableModuleArgumentNSNullConversionIOS();
   }
 
   bool enableNativeCSSParsing() override {
@@ -493,6 +520,15 @@ class ReactNativeFeatureFlagsDynamicProvider : public ReactNativeFeatureFlagsDef
     }
 
     return ReactNativeFeatureFlagsDefaults::useTurboModules();
+  }
+
+  double virtualViewPrerenderRatio() override {
+    auto value = values_["virtualViewPrerenderRatio"];
+    if (!value.isNull()) {
+      return value.getDouble();
+    }
+
+    return ReactNativeFeatureFlagsDefaults::virtualViewPrerenderRatio();
   }
 };
 

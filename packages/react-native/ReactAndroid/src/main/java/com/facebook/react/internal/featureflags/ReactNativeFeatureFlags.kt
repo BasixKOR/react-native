@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<62715a19c87a010716eb7d2e904258fa>>
+ * @generated SignedSource<<7484b716c0cb8d12d307e3b34767e559>>
  */
 
 /**
@@ -65,6 +65,12 @@ public object ReactNativeFeatureFlags {
    */
   @JvmStatic
   public fun disableMountItemReorderingAndroid(): Boolean = accessor.disableMountItemReorderingAndroid()
+
+  /**
+   * Turns off the global measurement cache used by TextLayoutManager on Android.
+   */
+  @JvmStatic
+  public fun disableTextLayoutManagerCacheAndroid(): Boolean = accessor.disableTextLayoutManagerCacheAndroid()
 
   /**
    * When enabled, the accessibilityOrder prop will propagate to native platforms and define the accessibility order.
@@ -169,10 +175,22 @@ public object ReactNativeFeatureFlags {
   public fun enableLayoutAnimationsOnIOS(): Boolean = accessor.enableLayoutAnimationsOnIOS()
 
   /**
+   * Make RCTUnsafeExecuteOnMainQueueSync less likely to deadlock, when used in conjuction with sync rendering/events.
+   */
+  @JvmStatic
+  public fun enableMainQueueCoordinatorOnIOS(): Boolean = accessor.enableMainQueueCoordinatorOnIOS()
+
+  /**
    * Makes modules requiring main queue setup initialize on the main thread, during React Native init.
    */
   @JvmStatic
   public fun enableMainQueueModulesOnIOS(): Boolean = accessor.enableMainQueueModulesOnIOS()
+
+  /**
+   * Enable NSNull conversion when handling module arguments on iOS
+   */
+  @JvmStatic
+  public fun enableModuleArgumentNSNullConversionIOS(): Boolean = accessor.enableModuleArgumentNSNullConversionIOS()
 
   /**
    * Parse CSS strings using the Fabric CSS parser instead of ViewConfig processing
@@ -329,6 +347,12 @@ public object ReactNativeFeatureFlags {
    */
   @JvmStatic
   public fun useTurboModules(): Boolean = accessor.useTurboModules()
+
+  /**
+   * Initial prerender ratio for VirtualView.
+   */
+  @JvmStatic
+  public fun virtualViewPrerenderRatio(): Double = accessor.virtualViewPrerenderRatio()
 
   /**
    * Overrides the feature flags with the ones provided by the given provider

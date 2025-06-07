@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<e1c1ba4c68d532a7296fa4f91a48de3a>>
+ * @generated SignedSource<<7e6dd10f2ccce6e207fd4ce8ed2a3a70>>
  */
 
 /**
@@ -38,6 +38,7 @@ class ReactNativeFeatureFlagsAccessor {
   bool cxxNativeAnimatedEnabled();
   bool disableMainQueueSyncDispatchIOS();
   bool disableMountItemReorderingAndroid();
+  bool disableTextLayoutManagerCacheAndroid();
   bool enableAccessibilityOrder();
   bool enableAccumulatedUpdatesInRawPropsAndroid();
   bool enableBridgelessArchitecture();
@@ -55,7 +56,9 @@ class ReactNativeFeatureFlagsAccessor {
   bool enableIntersectionObserverEventLoopIntegration();
   bool enableLayoutAnimationsOnAndroid();
   bool enableLayoutAnimationsOnIOS();
+  bool enableMainQueueCoordinatorOnIOS();
   bool enableMainQueueModulesOnIOS();
+  bool enableModuleArgumentNSNullConversionIOS();
   bool enableNativeCSSParsing();
   bool enableNetworkEventReporting();
   bool enableNewBackgroundAndBorderDrawables();
@@ -82,6 +85,7 @@ class ReactNativeFeatureFlagsAccessor {
   bool useShadowNodeStateOnClone();
   bool useTurboModuleInterop();
   bool useTurboModules();
+  double virtualViewPrerenderRatio();
 
   void override(std::unique_ptr<ReactNativeFeatureFlagsProvider> provider);
   std::optional<std::string> getAccessedFeatureFlagNames() const;
@@ -93,7 +97,7 @@ class ReactNativeFeatureFlagsAccessor {
   std::unique_ptr<ReactNativeFeatureFlagsProvider> currentProvider_;
   bool wasOverridden_;
 
-  std::array<std::atomic<const char*>, 50> accessedFeatureFlags_;
+  std::array<std::atomic<const char*>, 54> accessedFeatureFlags_;
 
   std::atomic<std::optional<bool>> commonTestFlag_;
   std::atomic<std::optional<bool>> animatedShouldSignalBatch_;
@@ -101,6 +105,7 @@ class ReactNativeFeatureFlagsAccessor {
   std::atomic<std::optional<bool>> cxxNativeAnimatedEnabled_;
   std::atomic<std::optional<bool>> disableMainQueueSyncDispatchIOS_;
   std::atomic<std::optional<bool>> disableMountItemReorderingAndroid_;
+  std::atomic<std::optional<bool>> disableTextLayoutManagerCacheAndroid_;
   std::atomic<std::optional<bool>> enableAccessibilityOrder_;
   std::atomic<std::optional<bool>> enableAccumulatedUpdatesInRawPropsAndroid_;
   std::atomic<std::optional<bool>> enableBridgelessArchitecture_;
@@ -118,7 +123,9 @@ class ReactNativeFeatureFlagsAccessor {
   std::atomic<std::optional<bool>> enableIntersectionObserverEventLoopIntegration_;
   std::atomic<std::optional<bool>> enableLayoutAnimationsOnAndroid_;
   std::atomic<std::optional<bool>> enableLayoutAnimationsOnIOS_;
+  std::atomic<std::optional<bool>> enableMainQueueCoordinatorOnIOS_;
   std::atomic<std::optional<bool>> enableMainQueueModulesOnIOS_;
+  std::atomic<std::optional<bool>> enableModuleArgumentNSNullConversionIOS_;
   std::atomic<std::optional<bool>> enableNativeCSSParsing_;
   std::atomic<std::optional<bool>> enableNetworkEventReporting_;
   std::atomic<std::optional<bool>> enableNewBackgroundAndBorderDrawables_;
@@ -145,6 +152,7 @@ class ReactNativeFeatureFlagsAccessor {
   std::atomic<std::optional<bool>> useShadowNodeStateOnClone_;
   std::atomic<std::optional<bool>> useTurboModuleInterop_;
   std::atomic<std::optional<bool>> useTurboModules_;
+  std::atomic<std::optional<double>> virtualViewPrerenderRatio_;
 };
 
 } // namespace facebook::react
