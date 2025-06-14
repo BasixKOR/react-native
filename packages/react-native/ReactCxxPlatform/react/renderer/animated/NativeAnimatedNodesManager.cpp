@@ -35,10 +35,17 @@
 
 namespace facebook::react {
 
+// Global function pointer for getting current time. Current time
+// can be injected for testing purposes.
+static TimePointFunction g_now = &std::chrono::steady_clock::now;
+void g_setNativeAnimatedNowTimestampFunction(TimePointFunction nowFunction) {
+  g_now = nowFunction;
+}
+
 namespace {
 
 struct NodesQueueItem {
-  std::shared_ptr<AnimatedNode> node;
+  AnimatedNode* node;
   bool connectedToFinishedAnimation;
 };
 
@@ -65,10 +72,14 @@ NativeAnimatedNodesManager::NativeAnimatedNodesManager(
       startOnRenderCallback_(std::move(startOnRenderCallback)),
       stopOnRenderCallback_(std::move(stopOnRenderCallback)) {}
 
-std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) {
+NativeAnimatedNodesManager::~NativeAnimatedNodesManager() noexcept {
+  stopRenderCallbackIfNeeded();
+}
+
+std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) noexcept {
   auto node = getAnimatedNode<ValueAnimatedNode>(tag);
-  if (node) {
-    return node->value();
+  if (node != nullptr) {
+    return node->getValue();
   } else {
     LOG(WARNING)
         << "Cannot get value from AnimatedNode, it's not a ValueAnimatedNode";
@@ -80,7 +91,7 @@ std::optional<double> NativeAnimatedNodesManager::getValue(Tag tag) {
 
 std::unique_ptr<AnimatedNode> NativeAnimatedNodesManager::animatedNode(
     Tag tag,
-    const folly::dynamic& config) {
+    const folly::dynamic& config) noexcept {
   auto typeName = config["type"].asString();
 
   auto type = AnimatedNode::getNodeTypeByName(typeName);
@@ -91,47 +102,33 @@ std::unique_ptr<AnimatedNode> NativeAnimatedNodesManager::animatedNode(
 
   switch (type.value()) {
     case AnimatedNodeType::Style:
-      return std::make_unique<StyleAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<StyleAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Value:
-      return std::make_unique<ValueAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<ValueAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Color:
-      return std::make_unique<ColorAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<ColorAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Props:
-      return std::make_unique<PropsAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<PropsAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Tracking:
-      return std::make_unique<TrackingAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<TrackingAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Interpolation:
-      return std::make_unique<InterpolationAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<InterpolationAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Transform:
-      return std::make_unique<TransformAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<TransformAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Subtraction:
-      return std::make_unique<SubtractionAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<SubtractionAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Addition:
-      return std::make_unique<AdditionAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<AdditionAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Multiplication:
-      return std::make_unique<MultiplicationAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<MultiplicationAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Division:
-      return std::make_unique<DivisionAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<DivisionAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Modulus:
-      return std::make_unique<ModulusAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<ModulusAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Diffclamp:
-      return std::make_unique<DiffClampAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<DiffClampAnimatedNode>(tag, config, *this);
     case AnimatedNodeType::Round:
-      return std::make_unique<RoundAnimatedNode>(
-          tag, config, shared_from_this());
+      return std::make_unique<RoundAnimatedNode>(tag, config, *this);
     default:
       LOG(WARNING) << "Cannot create AnimatedNode of type " << typeName
                    << ", it's not implemented yet";
@@ -141,7 +138,7 @@ std::unique_ptr<AnimatedNode> NativeAnimatedNodesManager::animatedNode(
 
 void NativeAnimatedNodesManager::createAnimatedNode(
     Tag tag,
-    const folly::dynamic& config) {
+    const folly::dynamic& config) noexcept {
   auto node = animatedNode(tag, config);
   if (node) {
     std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
@@ -152,14 +149,14 @@ void NativeAnimatedNodesManager::createAnimatedNode(
 
 void NativeAnimatedNodesManager::connectAnimatedNodes(
     Tag parentTag,
-    Tag childTag) {
+    Tag childTag) noexcept {
   react_native_assert(parentTag);
   react_native_assert(childTag);
 
   auto parentNode = getAnimatedNode<AnimatedNode>(parentTag);
   auto childNode = getAnimatedNode<AnimatedNode>(childTag);
 
-  if (parentNode && childNode) {
+  if ((parentNode != nullptr) && (childNode != nullptr)) {
     parentNode->addChild(childTag);
     updatedNodeTags_.insert(childTag);
   } else {
@@ -171,12 +168,12 @@ void NativeAnimatedNodesManager::connectAnimatedNodes(
 
 void NativeAnimatedNodesManager::connectAnimatedNodeToView(
     Tag propsNodeTag,
-    Tag viewTag) {
+    Tag viewTag) noexcept {
   react_native_assert(propsNodeTag);
   react_native_assert(viewTag);
 
   auto node = getAnimatedNode<PropsAnimatedNode>(propsNodeTag);
-  if (node) {
+  if (node != nullptr) {
     node->connectToView(viewTag);
     {
       std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
@@ -191,12 +188,12 @@ void NativeAnimatedNodesManager::connectAnimatedNodeToView(
 
 void NativeAnimatedNodesManager::disconnectAnimatedNodeFromView(
     Tag propsNodeTag,
-    Tag viewTag) {
+    Tag viewTag) noexcept {
   react_native_assert(propsNodeTag);
   react_native_assert(viewTag);
 
   auto node = getAnimatedNode<PropsAnimatedNode>(propsNodeTag);
-  if (node) {
+  if (node != nullptr) {
     node->disconnectFromView(viewTag);
     {
       std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
@@ -211,14 +208,14 @@ void NativeAnimatedNodesManager::disconnectAnimatedNodeFromView(
 
 void NativeAnimatedNodesManager::disconnectAnimatedNodes(
     Tag parentTag,
-    Tag childTag) {
+    Tag childTag) noexcept {
   react_native_assert(parentTag);
   react_native_assert(childTag);
 
   auto parentNode = getAnimatedNode<AnimatedNode>(parentTag);
   auto childNode = getAnimatedNode<AnimatedNode>(childTag);
 
-  if (parentNode && childNode) {
+  if ((parentNode != nullptr) && (childNode != nullptr)) {
     parentNode->removeChild(childTag);
   } else {
     LOG(WARNING) << "Cannot DisconnectAnimatedNodes, parentTag = " << parentTag
@@ -227,13 +224,13 @@ void NativeAnimatedNodesManager::disconnectAnimatedNodes(
   }
 }
 
-void NativeAnimatedNodesManager::restoreDefaultValues(Tag tag) {
+void NativeAnimatedNodesManager::restoreDefaultValues(Tag tag) noexcept {
   if (auto propsNode = getAnimatedNode<PropsAnimatedNode>(tag)) {
     propsNode->restoreDefaultValues();
   }
 }
 
-void NativeAnimatedNodesManager::dropAnimatedNode(Tag tag) {
+void NativeAnimatedNodesManager::dropAnimatedNode(Tag tag) noexcept {
   std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
   animatedNodes_.erase(tag);
 }
@@ -253,7 +250,7 @@ void NativeAnimatedNodesManager::stopAnimationsForNode(Tag nodeTag) {
   std::vector<int> discardedAnimIds{};
 
   for (const auto& [animationId, driver] : activeAnimations_) {
-    if (driver->animatedValueTag() == nodeTag) {
+    if (driver->getAnimatedValueTag() == nodeTag) {
       discardedAnimIds.emplace_back(animationId);
     }
   }
@@ -263,60 +260,40 @@ void NativeAnimatedNodesManager::stopAnimationsForNode(Tag nodeTag) {
   }
 }
 
-void NativeAnimatedNodesManager::setAnimatedNodeOffset(
-    Tag /*tag*/,
-    double /*offset*/) {
-  LOG(WARNING) << "SetAnimatedNodeOffset is unimplemented";
-}
-
-void NativeAnimatedNodesManager::flattenAnimatedNodeOffset(Tag /*tag*/) {
-  LOG(WARNING) << "FlattenAnimatedNodeOffset is unimplemented";
-}
-
-void NativeAnimatedNodesManager::extractAnimatedNodeOffset(Tag /*tag*/) {
-  LOG(WARNING) << "ExtractAnimatedNodeOffset is unimplemented";
-}
-
-void NativeAnimatedNodesManager::updateAnimatedNodeConfig(
-    Tag /*tag*/,
-    const folly::dynamic& /*config*/) {
-  LOG(WARNING) << "UpdateAnimatedNodeConfig is unimplemented";
-}
-
 // drivers
 
 void NativeAnimatedNodesManager::startAnimatingNode(
     int animationId,
     Tag animatedNodeTag,
     const folly::dynamic& config,
-    const std::optional<AnimationEndCallback>& endCallback) {
+    const std::optional<AnimationEndCallback>& endCallback) noexcept {
   if (auto iter = activeAnimations_.find(animationId);
       iter != activeAnimations_.end()) {
     // reset animation config
-    auto animation = iter->second;
+    auto& animation = iter->second;
     animation->updateConfig(config);
   } else if (animatedNodes_.contains(animatedNodeTag)) {
     auto type = config["type"].asString();
     auto typeEnum = AnimationDriver::getDriverTypeByName(type);
-    std::shared_ptr<AnimationDriver> animation = nullptr;
+    std::unique_ptr<AnimationDriver> animation = nullptr;
     if (typeEnum) {
       switch (typeEnum.value()) {
         case AnimationDriverType::Frames: {
-          animation = std::make_shared<FrameAnimationDriver>(
+          animation = std::make_unique<FrameAnimationDriver>(
               animationId, animatedNodeTag, endCallback, config, this);
         } break;
         case AnimationDriverType::Spring: {
-          animation = std::make_shared<SpringAnimationDriver>(
+          animation = std::make_unique<SpringAnimationDriver>(
               animationId, animatedNodeTag, endCallback, config, this);
         } break;
         case AnimationDriverType::Decay: {
-          animation = std::make_shared<DecayAnimationDriver>(
+          animation = std::make_unique<DecayAnimationDriver>(
               animationId, animatedNodeTag, endCallback, config, this);
         } break;
       }
       if (animation) {
-        activeAnimations_.insert({animationId, animation});
         animation->startAnimation();
+        activeAnimations_.insert({animationId, std::move(animation)});
       }
     } else {
       LOG(ERROR) << "Unknown AnimationDriver type " << type;
@@ -326,7 +303,7 @@ void NativeAnimatedNodesManager::startAnimatingNode(
 
 void NativeAnimatedNodesManager::stopAnimation(
     int animationId,
-    bool /*isTrackingAnimation*/) {
+    bool /*isTrackingAnimation*/) noexcept {
   if (auto iter = activeAnimations_.find(animationId);
       iter != activeAnimations_.end()) {
     iter->second->stopAnimation();
@@ -337,7 +314,7 @@ void NativeAnimatedNodesManager::stopAnimation(
 void NativeAnimatedNodesManager::addAnimatedEventToView(
     Tag viewTag,
     const std::string& eventName,
-    const folly::dynamic& eventMapping) {
+    const folly::dynamic& eventMapping) noexcept {
   const auto animatedValueTag = (eventMapping.count("animatedValueTag") != 0u)
       ? static_cast<Tag>(eventMapping["animatedValueTag"].asInt())
       : 0;
@@ -349,7 +326,8 @@ void NativeAnimatedNodesManager::addAnimatedEventToView(
   }
 
   const auto key = EventAnimationDriverKey{
-      viewTag, EventEmitter::normalizeEventType(eventName)};
+      .viewTag = viewTag,
+      .eventName = EventEmitter::normalizeEventType(eventName)};
   if (auto driversIter = eventDrivers_.find(key);
       driversIter != eventDrivers_.end()) {
     auto& drivers = driversIter->second;
@@ -366,9 +344,10 @@ void NativeAnimatedNodesManager::addAnimatedEventToView(
 void NativeAnimatedNodesManager::removeAnimatedEventFromView(
     Tag viewTag,
     const std::string& eventName,
-    Tag animatedValueTag) {
+    Tag animatedValueTag) noexcept {
   const auto key = EventAnimationDriverKey{
-      viewTag, EventEmitter::normalizeEventType(eventName)};
+      .viewTag = viewTag,
+      .eventName = EventEmitter::normalizeEventType(eventName)};
   auto driversIter = eventDrivers_.find(key);
   if (driversIter != eventDrivers_.end()) {
     auto& drivers = driversIter->second;
@@ -383,7 +362,7 @@ static thread_local bool isOnRenderThread_{false};
 void NativeAnimatedNodesManager::handleAnimatedEvent(
     Tag viewTag,
     const std::string& eventName,
-    const EventPayload& eventPayload) {
+    const EventPayload& eventPayload) noexcept {
   // We currently reject events that are not on the same thread as `onRender`
   // callbacks, as the assumption is these events can synchronously update
   // UI components or otherwise Animated nodes with single-threaded assumptions.
@@ -399,7 +378,8 @@ void NativeAnimatedNodesManager::handleAnimatedEvent(
     bool foundAtLeastOneDriver = false;
 
     const auto key = EventAnimationDriverKey{
-        viewTag, EventEmitter::normalizeEventType(eventName)};
+        .viewTag = viewTag,
+        .eventName = EventEmitter::normalizeEventType(eventName)};
     if (auto driversIter = eventDrivers_.find(key);
         driversIter != eventDrivers_.end()) {
       auto& drivers = driversIter->second;
@@ -427,21 +407,25 @@ void NativeAnimatedNodesManager::handleAnimatedEvent(
       // `startRenderCallbackIfNeeded` will call platform specific code to
       // register UI tick listener.
       startRenderCallbackIfNeeded();
+      // Calling startOnRenderCallback_ will register a UI tick listener.
+      // The UI ticker listener will not be called until the next frame.
+      // That's why, in case this is called from the UI thread, we need to
+      // proactivelly trigger the animation loop to avoid showing stale
+      // frames.
+      onRender();
     }
   }
 }
 
 std::shared_ptr<EventEmitterListener>
-NativeAnimatedNodesManager::ensureEventEmitterListener() {
+NativeAnimatedNodesManager::ensureEventEmitterListener() noexcept {
   if (!eventEmitterListener_) {
     eventEmitterListener_ = std::make_shared<EventEmitterListener>(
-        [weakSelf = weak_from_this()](
+        [this](
             Tag tag,
             const std::string& eventName,
             const EventPayload& payload) -> bool {
-          if (auto self = weakSelf.lock()) {
-            self->handleAnimatedEvent(tag, eventName, payload);
-          }
+          handleAnimatedEvent(tag, eventName, payload);
           return false;
         });
   }
@@ -450,40 +434,28 @@ NativeAnimatedNodesManager::ensureEventEmitterListener() {
 
 void NativeAnimatedNodesManager::startRenderCallbackIfNeeded() {
   if (startOnRenderCallback_) {
-    startOnRenderCallback_([weakSelf = weak_from_this()]() {
-      if (auto self = weakSelf.lock()) {
-        self->onRender();
-      }
-    });
-
-    if (isOnRenderThread_) {
-      // Calling startOnRenderCallback_ will register a UI tick listener.
-      // The UI ticker listener will not be called until the next frame.
-      // That's why, in case this is called from the UI thread, we need to
-      // proactivelly trigger the animation loop to avoid showing stale frames.
-      onRender();
-    }
+    startOnRenderCallback_([this]() { onRender(); });
   }
 }
 
-void NativeAnimatedNodesManager::stopRenderCallbackIfNeeded() {
+void NativeAnimatedNodesManager::stopRenderCallbackIfNeeded() noexcept {
   if (stopOnRenderCallback_) {
     stopOnRenderCallback_();
   }
 }
 
-bool NativeAnimatedNodesManager::isAnimationUpdateNeeded() const {
+bool NativeAnimatedNodesManager::isAnimationUpdateNeeded() const noexcept {
   return !activeAnimations_.empty() || !updatedNodeTags_.empty() ||
       isGestureAnimationInProgress_;
 }
 
 void NativeAnimatedNodesManager::updateNodes(
-    const std::set<int>& finishedAnimationValueNodes) {
+    const std::set<int>& finishedAnimationValueNodes) noexcept {
   auto nodesQueue = std::deque<NodesQueueItem>{};
 
   const auto is_node_connected_to_finished_animation =
       [&finishedAnimationValueNodes](
-          const std::shared_ptr<AnimatedNode>& node,
+          AnimatedNode* node,
           int nodeTag,
           bool parentFinishedAnimation) -> bool {
     return parentFinishedAnimation ||
@@ -515,18 +487,19 @@ void NativeAnimatedNodesManager::updateNodes(
 #endif
         const auto connectedToFinishedAnimation =
             is_node_connected_to_finished_animation(node, nodeTag, false);
-        nodesQueue.emplace_back(
-            NodesQueueItem{std::move(node), connectedToFinishedAnimation});
+        nodesQueue.emplace_back(NodesQueueItem{
+            .node = node,
+            .connectedToFinishedAnimation = connectedToFinishedAnimation});
       }
     }
   }
 
   while (!nodesQueue.empty()) {
-    auto nextNode = std::move(nodesQueue.front());
+    auto nextNode = nodesQueue.front();
     nodesQueue.pop_front();
     // in Animated, value nodes like RGBA are parents and Color node is child
     // (the opposite of tree structure)
-    for (const auto childTag : nextNode.node->children()) {
+    for (const auto childTag : nextNode.node->getChildren()) {
       auto child = getAnimatedNode<AnimatedNode>(childTag);
       child->activeIncomingNodes++;
       if (child->bfsColor != animatedGraphBFSColor_) {
@@ -537,8 +510,9 @@ void NativeAnimatedNodesManager::updateNodes(
         const auto connectedToFinishedAnimation =
             is_node_connected_to_finished_animation(
                 child, childTag, nextNode.connectedToFinishedAnimation);
-        nodesQueue.emplace_back(
-            NodesQueueItem{std::move(child), connectedToFinishedAnimation});
+        nodesQueue.emplace_back(NodesQueueItem{
+            .node = child,
+            .connectedToFinishedAnimation = connectedToFinishedAnimation});
       }
     }
   }
@@ -568,8 +542,9 @@ void NativeAnimatedNodesManager::updateNodes(
 #endif
         const auto connectedToFinishedAnimation =
             is_node_connected_to_finished_animation(node, nodeTag, false);
-        nodesQueue.emplace_back(
-            NodesQueueItem{std::move(node), connectedToFinishedAnimation});
+        nodesQueue.emplace_back(NodesQueueItem{
+            .node = node,
+            .connectedToFinishedAnimation = connectedToFinishedAnimation});
       }
     }
   }
@@ -579,19 +554,18 @@ void NativeAnimatedNodesManager::updateNodes(
   int cyclesDetected = 0;
 #endif
   while (!nodesQueue.empty()) {
-    auto nextNode = std::move(nodesQueue.front());
+    auto nextNode = nodesQueue.front();
     nodesQueue.pop_front();
     if (nextNode.connectedToFinishedAnimation &&
         nextNode.node->type() == AnimatedNodeType::Props) {
-      if (auto propsNode =
-              std::static_pointer_cast<PropsAnimatedNode>(nextNode.node)) {
+      if (auto propsNode = dynamic_cast<PropsAnimatedNode*>(nextNode.node)) {
         propsNode->update(/*forceFabricCommit*/ true);
       };
     } else {
       nextNode.node->update();
     }
 
-    for (auto childTag : nextNode.node->children()) {
+    for (auto childTag : nextNode.node->getChildren()) {
       auto child = getAnimatedNode<AnimatedNode>(childTag);
       child->activeIncomingNodes--;
       if (child->activeIncomingNodes == 0 && child->activeIncomingNodes == 0) {
@@ -602,8 +576,9 @@ void NativeAnimatedNodesManager::updateNodes(
         const auto connectedToFinishedAnimation =
             is_node_connected_to_finished_animation(
                 child, childTag, nextNode.connectedToFinishedAnimation);
-        nodesQueue.emplace_back(
-            NodesQueueItem{std::move(child), connectedToFinishedAnimation});
+        nodesQueue.emplace_back(NodesQueueItem{
+            .node = child,
+            .connectedToFinishedAnimation = connectedToFinishedAnimation});
       }
 #ifdef REACT_NATIVE_DEBUG
       else if (child->bfsColor == animatedGraphBFSColor_) {
@@ -642,16 +617,16 @@ void NativeAnimatedNodesManager::updateNodes(
   updatedNodeTags_.clear();
 }
 
-bool NativeAnimatedNodesManager::onAnimationFrame(uint64_t timestamp) {
+bool NativeAnimatedNodesManager::onAnimationFrame(double timestamp) {
   // Run all active animations
   auto hasFinishedAnimations = false;
   std::set<int> finishedAnimationValueNodes;
   for (const auto& [_id, driver] : activeAnimations_) {
     driver->runAnimationStep(timestamp);
 
-    if (driver->isComplete()) {
+    if (driver->getIsComplete()) {
       hasFinishedAnimations = true;
-      finishedAnimationValueNodes.insert(driver->animatedValueTag());
+      finishedAnimationValueNodes.insert(driver->getAnimatedValueTag());
     }
   }
 
@@ -662,8 +637,9 @@ bool NativeAnimatedNodesManager::onAnimationFrame(uint64_t timestamp) {
   if (hasFinishedAnimations) {
     std::vector<int> finishedAnimations;
     for (const auto& [animationId, driver] : activeAnimations_) {
-      if (driver->isComplete()) {
-        if (getAnimatedNode<ValueAnimatedNode>(driver->animatedValueTag())) {
+      if (driver->getIsComplete()) {
+        if (getAnimatedNode<ValueAnimatedNode>(driver->getAnimatedValueTag()) !=
+            nullptr) {
           driver->stopAnimation();
         }
         finishedAnimations.emplace_back(animationId);
@@ -677,8 +653,7 @@ bool NativeAnimatedNodesManager::onAnimationFrame(uint64_t timestamp) {
   return commitProps();
 }
 
-std::optional<folly::dynamic> NativeAnimatedNodesManager::managedProps(
-    Tag tag) {
+folly::dynamic NativeAnimatedNodesManager::managedProps(Tag tag) noexcept {
   std::lock_guard<std::mutex> lock(connectedAnimatedNodesMutex_);
   const auto iter = connectedAnimatedNodes_.find(tag);
   if (iter != connectedAnimatedNodes_.end()) {
@@ -687,20 +662,20 @@ std::optional<folly::dynamic> NativeAnimatedNodesManager::managedProps(
     }
   }
 
-  return {};
+  return nullptr;
 }
 
-bool NativeAnimatedNodesManager::isOnRenderThread() const {
+bool NativeAnimatedNodesManager::isOnRenderThread() const noexcept {
   return isOnRenderThread_;
 }
 
 // listeners
 void NativeAnimatedNodesManager::startListeningToAnimatedNodeValue(
     Tag tag,
-    ValueListenerCallback&& callback) {
+    ValueListenerCallback&& callback) noexcept {
   if (auto iter = animatedNodes_.find(tag); iter != animatedNodes_.end() &&
       iter->second->type() == AnimatedNodeType::Value) {
-    static_pointer_cast<ValueAnimatedNode>(iter->second)
+    static_cast<ValueAnimatedNode*>(iter->second.get())
         ->setValueListener(std::move(callback));
   } else {
     LOG(ERROR) << "startListeningToAnimatedNodeValue: Animated node [" << tag
@@ -708,10 +683,11 @@ void NativeAnimatedNodesManager::startListeningToAnimatedNodeValue(
   }
 }
 
-void NativeAnimatedNodesManager::stopListeningToAnimatedNodeValue(Tag tag) {
+void NativeAnimatedNodesManager::stopListeningToAnimatedNodeValue(
+    Tag tag) noexcept {
   if (auto iter = animatedNodes_.find(tag); iter != animatedNodes_.end() &&
       iter->second->type() == AnimatedNodeType::Value) {
-    static_pointer_cast<ValueAnimatedNode>(iter->second)
+    static_cast<ValueAnimatedNode*>(iter->second.get())
         ->setValueListener(nullptr);
   } else {
     LOG(ERROR) << "stopListeningToAnimatedNodeValue: Animated node [" << tag
@@ -723,7 +699,7 @@ void NativeAnimatedNodesManager::schedulePropsCommit(
     Tag viewTag,
     const folly::dynamic& props,
     bool layoutStyleUpdated,
-    bool forceFabricCommit) {
+    bool forceFabricCommit) noexcept {
   // When fabricCommitCallback_ & directManipulationCallback_ are both
   // available, we commit layout props via Fabric and the other using direct
   // manipulation; if only one is available, we commit all props using that
@@ -755,12 +731,12 @@ void NativeAnimatedNodesManager::onRender() {
 
   // Step through the animation loop
   if (isAnimationUpdateNeeded()) {
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  std::chrono::steady_clock::now().time_since_epoch())
-                  .count();
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+                            g_now().time_since_epoch())
+                            .count();
 
     auto containsChange =
-        onAnimationFrame(static_cast<uint64_t>(ms * TicksPerMs));
+        onAnimationFrame(static_cast<double>(microseconds) / 1000.0);
 
     if (!containsChange) {
       // The last animation tick didn't result in any changes to the UI.

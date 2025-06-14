@@ -9,16 +9,18 @@
 
 #include <react/renderer/componentregistry/ComponentDescriptorRegistry.h>
 #include <react/renderer/components/view/ViewProps.h>
+#include <react/renderer/core/DynamicPropsUtilities.h>
+#include <react/renderer/scheduler/Scheduler.h>
 #include <react/renderer/uimanager/UIManagerBinding.h>
 
 namespace facebook::react {
 
 AnimatedMountingOverrideDelegate::AnimatedMountingOverrideDelegate(
-    std::function<std::optional<folly::dynamic>(Tag)> getAnimatedManagedProps,
-    std::weak_ptr<UIManagerBinding> uiManagerBinding)
+    std::function<folly::dynamic(Tag)> getAnimatedManagedProps,
+    const Scheduler& scheduler)
     : MountingOverrideDelegate(),
       getAnimatedManagedProps_(std::move(getAnimatedManagedProps)),
-      uiManagerBinding_(std::move(uiManagerBinding)){};
+      scheduler_(&scheduler){};
 
 bool AnimatedMountingOverrideDelegate::shouldOverridePullTransaction() const {
   return getAnimatedManagedProps_ != nullptr;
@@ -39,8 +41,9 @@ AnimatedMountingOverrideDelegate::pullTransaction(
   for (const auto& mutation : mutations) {
     if (mutation.type == ShadowViewMutation::Update) {
       const auto tag = mutation.newChildShadowView.tag;
-      if (auto props = getAnimatedManagedProps_(tag)) {
-        animatedManagedProps.insert({tag, std::move(*props)});
+      auto props = getAnimatedManagedProps_(tag);
+      if (!props.isNull()) {
+        animatedManagedProps.insert({tag, std::move(props)});
       }
     }
   }
@@ -51,6 +54,7 @@ AnimatedMountingOverrideDelegate::pullTransaction(
   }
 
   ShadowViewMutation::List filteredMutations;
+  filteredMutations.reserve(mutations.size());
   for (const auto& mutation : mutations) {
     folly::dynamic modifiedProps = folly::dynamic::object();
     if (mutation.type == ShadowViewMutation::Update) {
@@ -60,29 +64,36 @@ AnimatedMountingOverrideDelegate::pullTransaction(
       }
     }
     if (modifiedProps.empty()) {
-      filteredMutations.emplace_back(mutation);
+      filteredMutations.push_back(mutation);
     } else {
-      if (auto uiManagerBinding = uiManagerBinding_.lock()) {
-        auto* scheduler = static_cast<Scheduler*>(
-            uiManagerBinding->getUIManager().getDelegate());
-        react_native_assert(scheduler);
-        if (const auto* componentDescriptor =
-                scheduler
-                    ->findComponentDescriptorByHandle_DO_NOT_USE_THIS_IS_BROKEN(
-                        mutation.newChildShadowView.componentHandle)) {
-          PropsParserContext propsParserContext{
-              mutation.newChildShadowView.surfaceId,
-              *scheduler->getContextContainer()};
-          auto modifiedNewChildShadowView = mutation.newChildShadowView;
-          modifiedNewChildShadowView.props = componentDescriptor->cloneProps(
-              propsParserContext,
-              mutation.newChildShadowView.props,
-              RawProps(std::move(modifiedProps)));
-          filteredMutations.emplace_back(ShadowViewMutation::UpdateMutation(
-              mutation.oldChildShadowView,
-              std::move(modifiedNewChildShadowView),
-              mutation.parentTag));
-        }
+      if (const auto* componentDescriptor =
+              scheduler_
+                  ->findComponentDescriptorByHandle_DO_NOT_USE_THIS_IS_BROKEN(
+                      mutation.newChildShadowView.componentHandle)) {
+        PropsParserContext propsParserContext{
+            mutation.newChildShadowView.surfaceId,
+            *scheduler_->getContextContainer()};
+        auto modifiedNewChildShadowView = mutation.newChildShadowView;
+        modifiedNewChildShadowView.props = componentDescriptor->cloneProps(
+            propsParserContext,
+            mutation.newChildShadowView.props,
+            RawProps(modifiedProps));
+#ifdef RN_SERIALIZABLE_STATE
+        // Until Props 2.0 is shipped, android uses rawProps.
+        // RawProps must be kept synced with C++ Animated as well
+        // as props object.
+        auto& castedProps =
+            const_cast<Props&>(*modifiedNewChildShadowView.props);
+        castedProps.rawProps = mergeDynamicProps(
+            mutation.newChildShadowView.props->rawProps,
+            modifiedProps,
+            NullValueStrategy::Override);
+#endif
+
+        filteredMutations.emplace_back(ShadowViewMutation::UpdateMutation(
+            mutation.oldChildShadowView,
+            std::move(modifiedNewChildShadowView),
+            mutation.parentTag));
       }
     }
   }
